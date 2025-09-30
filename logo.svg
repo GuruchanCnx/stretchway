@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#4facfe"/>
+      <stop offset="1" stop-color="#a0f0e6"/>
+    </linearGradient>
+    <filter id="f" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" rx="48" fill="#071125"/>
+  <path d="M120,140 C200,80 312,80 392,140 C320,200 200,200 160,280 C200,340 320,340 392,280" 
+        fill="none" stroke="url(#g)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" filter="url(#f)"/>
+  <circle cx="150" cy="220" r="12" fill="#ffffff" />
+  <path d="M150 234 L150 270 M150 250 L135 240 M150 250 L165 240" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(40,370)">
+    <text x="0" y="0" font-family="Segoe UI, Roboto, Arial" font-weight="800" font-size="44" fill="url(#g)">StretchWay</text>
+    <text x="0" y="32" font-family="Segoe UI, Roboto, Arial" font-weight="500" font-size="16" fill="#9bdff5">Wellness on the Road</text>
+  </g>
+</svg>

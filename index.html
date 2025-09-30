@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StretchWay — Wellness on the Road</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" href="apple-touch.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4facfe" />
+  <style>
+    :root { --bg:#07111b; --panel: rgba(255,255,255,0.03); --glass-border: rgba(255,255,255,0.04); --accent: #4facfe; --accent2: #a0f0e6; --muted: rgba(255,255,255,0.75); }
+    [data-theme="light"] { --bg: #f7fafc; --panel: rgba(10,18,36,0.03); --glass-border: rgba(0,0,0,0.06); --muted: #223; --accent: #0aa3d9; --accent2: #79d9e8; }
+
+    html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;background:linear-gradient(180deg,var(--bg), #081627);color:var(--muted);}
+    .topbar{max-width:1200px;margin:18px auto;padding:14px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid var(--glass-border);display:flex;align-items:center;gap:14px}
+    .logo img{width:56px;height:56px;border-radius:12px}
+    .brand{font-weight:800;font-size:20px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}
+    .subtitle{font-size:13px;color:var(--muted)}
+    .top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:8px 12px;border-radius:10px;color:#042033;font-weight:700;cursor:pointer}
+    .ghost{background:transparent;border:1px solid var(--glass-border);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
+
+    .category-nav{position:sticky;top:86px;z-index:999;max-width:1200px;margin:12px auto;padding:8px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border:1px solid var(--glass-border);}
+    .category-inner{display:flex;gap:10px;overflow-x:auto;padding:6px;-webkit-overflow-scrolling:touch}
+    .cat-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:12px;color:var(--muted);font-weight:700;cursor:pointer;white-space:nowrap}
+    .cat-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#042033;border-color:transparent;box-shadow:0 8px 20px rgba(79,172,254,0.12)}
+
+    .main{max-width:1200px;margin:18px auto;display:grid;grid-template-columns:1fr 360px;gap:20px}
+    .content{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:18px;border:1px solid var(--glass-border)}
+    .panel{position:sticky;top:24px;padding:16px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border:1px solid var(--glass-border)}
+    .section-title{color:var(--accent2);font-size:18px;margin-bottom:12px}
+    .vehicle-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;gap:12px;align-items:flex-start}
+    .thumb{width:76px;height:76px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .car-thumb{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    .bike-thumb{background:linear-gradient(90deg,#ff9966,#ff5e62);}
+    .exercise-list{margin-top:16px;display:grid;gap:12px}
+    .exercise{padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.02)}
+
+    @media(max-width:980px){.main{grid-template-columns:1fr}.vehicle-grid{grid-template-columns:1fr}.category-nav{top:140px}}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo"><img src="logo.svg" alt="logo"></div>
+    <div>
+      <div class="brand">StretchWay</div>
+      <div class="subtitle">Wellness on the Road</div>
+    </div>
+    <div class="top-actions">
+      <button class="ghost" id="themeToggle">Toggle Light/Dark</button>
+      <button class="btn" onclick="downloadPackage()">Download ZIP</button>
+    </div>
+  </div>
+
+  <nav class="category-nav" aria-label="Top categories">
+    <div class="category-inner" id="categoryInner">
+      <button class="cat-btn active" data-target="car" onclick="jumpToSection('car')">Car Drivers</button>
+      <button class="cat-btn" data-target="two-wheeler" onclick="jumpToSection('two-wheeler')">Two-Wheelers</button>
+      <button class="cat-btn" data-target="quick" onclick="jumpToSection('quick')">Quick Relief</button>
+      <button class="cat-btn" data-target="spinal" onclick="jumpToSection('spinal')">Spinal Care</button>
+      <button class="cat-btn" data-target="taichi" onclick="jumpToSection('taichi')">Flow & Balance</button>
+      <button class="cat-btn" data-target="yoga" onclick="jumpToSection('yoga')">Mindful Stretches</button>
+      <button class="cat-btn" data-target="breathing" onclick="jumpToSection('breathing')">Breath Mastery</button>
+      <button class="cat-btn" data-target="full" onclick="jumpToSection('full')">Complete Journey</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="content">
+      <section id="car">
+        <div class="section-title">Car Drivers — In-seat & Dashboard Stretches</div>
+        <div class="vehicle-grid">
+          <!-- several cards -->
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Neck Rolls (Seated)</h3><p class="muted">Slow neck circles, 10 reps each direction.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Wrist Rotations</h3><p class="muted">Rotate wrists clockwise/counterclockwise — 15 reps.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Seated Hamstring Slide</h3><p class="muted">Slide one leg forward and hinge — hold 20s.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Shoulder Relief</h3><p class="muted">Shoulder lifts and rolls — 8–10 reps.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Lower Back Micro-mobilization</h3><p class="muted">Seated pelvic tilts — 10 reps.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">CAR</div><div><h3>Seated Calf Pumps</h3><p class="muted">Point and flex feet — 20 reps to boost circulation.</p></div></div>
+        </div>
+
+        <div class="exercise-list">
+          <div class="exercise"><strong>Routine: 10-minute In-Seat Reset</strong><br>Neck Rolls → Shoulder Relief → Wrist Rotations → Seated Hamstring Slide → 2 min breathing.</div>
+          <div class="exercise"><strong>Hydration Tip</strong><br>Drink 200ml of water during your stop — supports circulation and alertness.</div>
+        </div>
+      </section>
+
+      <section id="two-wheeler" style="margin-top:18px">
+        <div class="section-title">Two-Wheelers — Off-bike Full Body Stretches</div>
+        <div class="vehicle-grid">
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Standing Quad Stretch</h3><p class="muted">Hold ankle behind you — 20–30s per side.</p></div></div>
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Shoulder Rolls (Open)</h3><p class="muted">Big circular rolls — 10 forward, 10 back.</p></div></div>
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Wrist Flicks</h3><p class="muted">Shake and flick wrists — 15 reps each.</p></div></div>
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Neck Tilts</h3><p class="muted">Gentle side tilts — 10 reps each side.</p></div></div>
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Hip Openers</h3><p class="muted">Standing hip circles and lunges — 6 reps each.</p></div></div>
+          <div class="card"><div class="thumb bike-thumb">BIKE</div><div><h3>Ankle Rolls</h3><p class="muted">Circular rotations to restore balance — 15 reps each.</p></div></div>
+        </div>
+
+        <div class="exercise-list">
+          <div class="exercise"><strong>Routine: 12-minute Rider Reset</strong><br>Standing Quad → Hip Openers → Shoulder Rolls → Neck Tilts → Wrist Flicks → 2 min breathing.</div>
+          <div class="exercise"><strong>Safety Tip</strong><br>Always park safely and remove helmet before stretching.</div>
+        </div>
+      </section>
+
+      <section id="quick" style="margin-top:18px">
+        <div class="section-title">Quick Relief — 5-minute micro routines</div>
+        <div class="vehicle-grid">
+          <div class="card"><div class="thumb car-thumb">Q</div><div><h3>Eye Palming</h3><p class="muted">Cup eyes for 30s to relax vision.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">Q</div><div><h3>Seated Twist</h3><p class="muted">Gentle spinal twist — 30s each side.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">Q</div><div><h3>Deep Belly Breath</h3><p class="muted">4-4-8 breathing cycle.</p></div></div>
+          <div class="card"><div class="thumb car-thumb">Q</div><div><h3>Hand Squeezes</h3><p class="muted">Clench & release to wake forearms.</p></div></div>
+        </div>
+      </section>
+
+      <section id="spinal" style="margin-top:18px">
+        <div class="section-title">Spinal Care — mobility & decompression</div>
+        <div class="exercise-list">
+          <div class="exercise"><strong>Seated Cat-Cow</strong><br>Seated pelvic tilt moving between arch and round — 8–10 reps.</div>\n          <div class="exercise"><strong>Spinal Wave</strong><br>Gentle wave from tailbone to crown — 6 reps each direction.</div>\n          <div class="exercise"><strong>Thoracic Rotation</strong><br>Hold hands behind head, rotate upper torso — 10 reps each side.</div>\n          <div class="exercise"><strong>Lumbar Brace</strong><br>Engage core while gently tilting pelvis — 6 reps.</div>\n          <div class="exercise"><strong>Back Extension Micro</strong><br>Small back extensions while seated — 8 reps.</div>\n          <div class="exercise"><strong>Hip-Hinge Drill</strong><br>Slow hinge from hips keeping spine neutral — 8 reps.</div>\n          <div class="exercise"><strong>Piriformis Release</strong><br>Crossed-leg stretch — 30s each side.</div>\n          <div class="exercise"><strong>Knee-to-Chest</strong><br>One knee hugged to chest — 20s each side.</div>\n          <div class="exercise"><strong>Standing Hamstring Reach</strong><br>Feet hip-width, hinge to reach toes — 20s.</div>\n          <div class="exercise"><strong>Spinal Decompression Breath</strong><br>Inhale lift, exhale relax with long spine.</div>\n          <div class="exercise"><strong>Lumbar Circles</strong><br>Gentle small circles focusing on lower back — 6 each way.</div>\n        </div>
+      </section>
+
+      <section id="taichi" style="margin-top:18px">
+        <div class="section-title">Flow & Balance — Taichi & Qigong inspired</div>
+        <div class="exercise-list">
+          <div class="exercise"><strong>Cloud Hands</strong><br>Slow flowing circular arm patterns — 8–12 reps.</div>
+          <div class="exercise"><strong>Rooting Breath</strong><br>Deep diaphragmatic breaths with grounding stance — 6 cycles.</div>
+          <div class="exercise"><strong>Single Leg Balance</strong><br>Hold 20s each side to improve proprioception.</div>
+          <div class="exercise"><strong>Energy Sweep</strong><br>Slow hand sweeps along body to release tension.</div>
+        </div>
+      </section>
+
+      <section id="yoga" style="margin-top:18px">
+        <div class="section-title">Mindful Stretches — Yoga adaptations</div>
+        <div class="exercise-list">
+          <div class="exercise"><strong>Seated Cat-Cow</strong><br>8–10 breaths moving spinal segments.</div>
+          <div class="exercise"><strong>Thread the Needle</strong><br>Upper back opener on one side — 30s each.</div>
+          <div class="exercise"><strong>Seated Forward Fold</strong><br>Hamstring release — 30s.</div>
+        </div>
+      </section>
+
+      <section id="breathing" style="margin-top:18px">
+        <div class="section-title">Breath Mastery — calming protocols</div>
+        <div class="exercise-list">
+          <div class="exercise"><strong>4-7-8</strong><br>Inhale 4, hold 7, exhale 8 — 4 cycles.</div>
+          <div class="exercise"><strong>Box Breathing</strong><br>4-4-4-4 cycle to reset alertness.</div>
+          <div class="exercise"><strong>Resonant Breathing</strong><br>Slow 6 breaths/minute for 3 minutes.</div>
+        </div>
+      </section>
+
+      <section id="full" style="margin-top:18px">
+        <div class="section-title">Complete Journey — 15-minute comprehensive routine</div>
+        <div class="exercise-list">
+          <div class="exercise"><strong>Minutes 1-3: Centering</strong><br>Breathing + gentle neck rolls.</div>
+          <div class="exercise"><strong>Minutes 4-6: Spinal Liberation</strong><br>Spinal wave & thoracic rotations.</div>
+          <div class="exercise"><strong>Minutes 7-9: Dynamic Stretch</strong><br>Hip openers & shoulder mobility.</div>
+          <div class="exercise"><strong>Minutes 10-12: Taichi Flow</strong><br>Cloud Hands & balance.</div>
+          <div class="exercise"><strong>Minutes 13-15: Integration</strong><br>Slow breathing & grounding.</div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="panel">
+      <div style="font-weight:800">StretchWay</div>
+      <div style="margin-top:12px" class="section-title">Profile & Upload</div>
+      <div style="color:var(--muted);font-size:13px">Register and create a profile. Upload up to 5 photos (client-side only placeholder).</div>
+      <input type="file" id="upload" multiple accept="image/*" style="display:none" onchange="handleFiles(event)">
+      <button class="btn" onclick="document.getElementById('upload').click()">Upload Photos (max 5)</button>
+      <div id="thumbs" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+
+      <div style="margin-top:12px" class="section-title">Location Suggestions</div>
+      <input id="locInput" placeholder="Add a location name" style="width:100%;padding:8px;border-radius:10px;border:1px solid var(--glass-border);background:transparent;color:var(--muted)">
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="addLocation()">Add</button><button class="ghost" onclick="clearLocations()">Clear</button></div>
+      <div id="locList" style="margin-top:10px;color:var(--muted);font-size:13px"></div>
+
+      <div style="margin-top:12px" class="section-title">Languages</div>
+      <div style="color:var(--muted);font-size:13px">Brazilian Portuguese, Chinese, English, French, Hindi, Italian, Japanese, Spanish, Thai</div>
+
+      <div style="margin-top:12px;display:flex;gap:8px"><button class="btn" onclick="downloadPackage()">Download ZIP</button><button class="btn" onclick="openPDF()">Open Guide</button></div>
+      <div class="footer" style="margin-top:12px;color:var(--muted);font-size:13px">Preview only • Liquid Glass emulation</div>
+    </aside>
+  </div>
+
+<script>
+// Theme toggle
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', () => {
+  if(document.documentElement.getAttribute('data-theme') === 'light') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme','light');
+  }
+});
+
+// Sticky nav and anchor jumps
+function jumpToSection(id) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'auto', block:'start'});
+  history.replaceState(null, '', '#' + id);
+  setActiveCategory(id);
+}
+function setActiveCategory(id) {
+  document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.target === id));
+}
+function onScrollHighlight() {
+  const sections = Array.from(document.querySelectorAll('section[id]')).filter(s => s.offsetParent !== null);
+  let currentId = sections[0] && sections[0].id || '';
+  const viewportTop = window.scrollY + 120;
+  for(let s of sections) { if(s.offsetTop <= viewportTop) currentId = s.id; }
+  setActiveCategory(currentId);
+}
+let scrollTimer;
+window.addEventListener('scroll', () => { if(scrollTimer) clearTimeout(scrollTimer); scrollTimer = setTimeout(onScrollHighlight, 60); });
+document.addEventListener('DOMContentLoaded', () => { const hash = (location.hash || '').replace('#',''); if(hash && document.getElementById(hash)) jumpToSection(hash); else onScrollHighlight(); });
+
+// Upload thumbs
+function handleFiles(e){ const files = Array.from(e.target.files).slice(0,5); const thumbs = document.getElementById('thumbs'); thumbs.innerHTML=''; files.forEach(file=>{ const url = URL.createObjectURL(file); const img = document.createElement('img'); img.src = url; img.style.width='64px'; img.style.height='64px'; img.style.borderRadius='8px'; img.style.objectFit='cover'; thumbs.appendChild(img); }); if(files.length==0) alert('No files selected'); }
+
+// Locations
+let locations = [];
+function addLocation(){ const v = document.getElementById('locInput').value.trim(); if(!v) return alert('Type a name'); locations.push(v); renderLocations(); document.getElementById('locInput').value=''; }
+function renderLocations(){ document.getElementById('locList').innerHTML = locations.map((l,i)=>`<div style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px">${i+1}. ${l}</div>`).join(''); }
+function clearLocations(){ locations=[]; renderLocations(); }
+
+// Download package (client-side stub)
+function downloadPackage(){ alert('Use the ZIP package provided separately for Netlify Drop.'); }
+function openPDF(){ window.open('StretchWay_StickyNav_Mockups_Netlify_Guide.pdf','_blank'); }
+</script>
+</body>
+</html>
