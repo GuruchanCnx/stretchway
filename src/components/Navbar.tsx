@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Car, 
   Bike, 
@@ -10,10 +10,13 @@ import {
   Globe, 
   Sparkles, 
   Download,
-  Activity
+  Activity,
+  Palette,
+  Check
 } from 'lucide-react';
-import { VehicleType, UserProgress } from '../types';
+import { VehicleType, UserProgress, AccentColorTheme } from '../types';
 import { SupportedLang, TRANSLATIONS } from '../data/translations';
+import { THEME_CONFIGS } from '../data/themes';
 
 interface NavbarProps {
   currentVehicle: VehicleType;
@@ -22,6 +25,8 @@ interface NavbarProps {
   onSelectLang: (lang: SupportedLang) => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  accentTheme: AccentColorTheme;
+  onSelectAccentTheme: (theme: AccentColorTheme) => void;
   userProgress: UserProgress;
   onOpenAICoach: () => void;
   onOpenQuickBreath: () => void;
@@ -36,6 +41,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectLang,
   theme,
   onToggleTheme,
+  accentTheme,
+  onSelectAccentTheme,
   userProgress,
   onOpenAICoach,
   onOpenQuickBreath,
@@ -43,6 +50,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab
 }) => {
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const currentAccent = THEME_CONFIGS[accentTheme] || THEME_CONFIGS.ocean;
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
+        setIsThemeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const vehicleButtons: { type: VehicleType; label: string; icon: React.ReactNode }[] = [
     { type: 'all', label: t.allVehicles, icon: <Layers className="w-4 h-4" /> },
@@ -125,13 +146,77 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="sm:hidden">Coach</span>
             </button>
 
+            {/* Color Theme Selector Dropdown */}
+            <div className="relative" ref={themeMenuRef}>
+              <button
+                onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+                className="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all text-xs group"
+                title="Select Accent Color Scheme (Ocean, Sunset, Forest, Aurora, Golden)"
+              >
+                <div 
+                  className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm transition-transform group-hover:scale-110" 
+                  style={{ backgroundColor: currentAccent.primaryColor }}
+                />
+                <Palette className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+              </button>
+
+              {isThemeMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 p-2.5 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 px-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5" style={{ color: currentAccent.primaryColor }} />
+                      Accent Color Theme
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-500 capitalize">{accentTheme}</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {Object.values(THEME_CONFIGS).map((item) => {
+                      const isSelected = accentTheme === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            onSelectAccentTheme(item.id);
+                            setIsThemeMenuOpen(false);
+                          }}
+                          className={`w-full text-left p-2 rounded-xl text-xs transition-all flex items-center justify-between ${
+                            isSelected 
+                              ? 'bg-slate-800/90 border border-slate-700 font-bold text-white shadow-sm' 
+                              : 'text-slate-300 hover:bg-slate-800/50 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5">
+                            <div 
+                              className="w-4 h-4 rounded-full border border-white/30 shadow-md flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: item.primaryColor }}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold leading-tight">{item.name}</div>
+                              <div className="text-[10px] text-slate-400 font-normal line-clamp-1">{item.description}</div>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 shrink-0" style={{ color: item.primaryColor }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Language Dropdown */}
             <div className="relative group">
               <button 
                 className="flex items-center space-x-1 p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all text-xs"
                 title="Change Language"
               >
-                <Globe className="w-4 h-4 text-cyan-400" />
+                <Globe className="w-4 h-4" style={{ color: currentAccent.primaryColor }} />
                 <span className="uppercase text-[11px] font-bold">{currentLang}</span>
               </button>
               <div className="absolute right-0 mt-1 w-36 py-1 bg-slate-900 border border-slate-800 rounded-xl shadow-xl hidden group-hover:block z-50">
@@ -150,8 +235,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={item.code}
                     onClick={() => onSelectLang(item.code as SupportedLang)}
                     className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between ${
-                      currentLang === item.code ? 'bg-cyan-500/20 text-cyan-400 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                      currentLang === item.code ? 'bg-slate-800 font-bold' : 'text-slate-300 hover:bg-slate-800'
                     }`}
+                    style={currentLang === item.code ? { color: currentAccent.primaryColor } : {}}
                   >
                     <span>{item.name}</span>
                     <span className="text-[10px] text-slate-500 uppercase">{item.code}</span>
@@ -163,11 +249,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Theme Toggle */}
             <button
               onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 transition-all"
-              title="Toggle Theme"
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all"
+              title="Toggle Dark / Light Mode"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
             </button>
+
 
           </div>
         </div>

@@ -16,11 +16,13 @@ import {
   ShieldAlert, 
   Heart,
   ChevronRight,
-  Flame
+  Flame,
+  ArrowLeft
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Routine, Exercise } from '../types';
 import { playTick, playGong, speakCoachCue, stopVoiceCoach } from '../utils/audio';
+import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
 
 interface InteractivePlayerProps {
   routine: Routine;
@@ -225,13 +227,28 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
       
       {/* Top Header Bar */}
       <div className="flex items-center justify-between px-4 sm:px-8 py-4 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-widest text-cyan-400">
-            Active Stretch Routine • Step {currentIdx + 1} of {routine.exercises.length}
-          </span>
-          <h2 className="text-base sm:text-lg font-extrabold text-white truncate max-w-xs sm:max-w-md">
-            {routine.title}
-          </h2>
+        <div className="flex items-center gap-3">
+          {/* Prominent Back / Exit Button */}
+          <button
+            onClick={() => {
+              stopVoiceCoach();
+              onClose();
+            }}
+            className="py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95 group"
+            title="Back to Dashboard"
+          >
+            <ArrowLeft className="w-4 h-4 text-cyan-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
+
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-cyan-400">
+              Active Routine • Step {currentIdx + 1} of {routine.exercises.length}
+            </span>
+            <h2 className="text-base sm:text-lg font-extrabold text-white truncate max-w-xs sm:max-w-md">
+              {routine.title}
+            </h2>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -405,6 +422,19 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
               {currentExercise.name}
             </h1>
+          </div>
+
+          {/* Veo-3 4K Motion Demonstration with View Switcher */}
+          <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
+            <Veo3ExerciseViewer
+              exercise={currentExercise}
+              variant="player"
+              autoPlay={isPlaying}
+              onBack={() => {
+                stopVoiceCoach();
+                onClose();
+              }}
+            />
           </div>
 
           {/* Olympic Coach Form Cue (Gold/Cyan Banner) */}

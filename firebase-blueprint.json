@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Firestore Schema Blueprint for StretchWay",
+  "description": "Firestore collections and documents blueprint for driver stretch sessions, recovery logs, and user profile",
+  "entities": {
+    "users": {
+      "title": "User Profile & Progress",
+      "description": "User profile with streak, minutes, vehicle preferences, and favorites",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "vehiclePreference": { "type": "string" },
+        "accentTheme": { "type": "string" },
+        "currentStreakDays": { "type": "number" },
+        "totalMinutesStretched": { "type": "number" },
+        "totalSessionsCompleted": { "type": "number" },
+        "lastActiveDate": { "type": "string" },
+        "favoriteExerciseIds": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "totalMinutesStretched"]
+    },
+    "sessions": {
+      "title": "Completed Stretch / Decompression Sessions",
+      "description": "Individual stretch logs with pre/post pain scores and vehicle context",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "routineId": { "type": "string" },
+        "title": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "vehicle": { "type": "string" },
+        "completedAt": { "type": "string" },
+        "preComfortScore": { "type": "number" },
+        "postComfortScore": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "title", "durationMinutes", "completedAt"]
+    },
+    "customRoutines": {
+      "title": "User Created / AI Prescribed Custom Routines",
+      "description": "Custom workouts generated or created by the user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "routineId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "totalDurationMinutes": { "type": "number" },
+        "applicableVehicles": { "type": "array", "items": { "type": "string" } },
+        "exerciseIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "exerciseIds"]
+    }
+  }
+}

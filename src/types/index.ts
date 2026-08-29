@@ -41,6 +41,13 @@ export interface Exercise {
   biomechanicsRationale: string;
   breathPattern?: string;
   imageIcon?: string;
+  videoClip?: {
+    veoPrompt: string;
+    cameraAngle: string;
+    biomechanicalFocus: string;
+    thumbnailColor: string;
+    accentBadge: string;
+  };
 }
 
 export interface Routine {
@@ -119,4 +126,65 @@ export interface UserProgress {
     feelingAfter: number; // 1-5
   }[];
   favoriteExerciseIds: string[];
+}
+
+export interface SorenessAssessmentResult {
+  diagnosisTitle: string;
+  diagnosisExplanation: string;
+  riskLevel: 'Mild Stiffness' | 'Moderate Compression' | 'High Tension Knot';
+  suggestedRoutineId: string;
+  suggestedRoutineTitle: string;
+  suggestedRoutineDuration: number;
+  matchReason: string;
+  acuteMicroReliefCue: string;
+  keyTargetMuscles: string[];
+  breathingPrescription: string;
+  recommendedExercises: {
+    name: string;
+    target: string;
+    cue: string;
+    duration: string;
+  }[];
+}
+
+export type DriverPrimaryIssue = 
+  | 'lower-back'
+  | 'neck-shoulders'
+  | 'sciatica-hips'
+  | 'wrist-hand'
+  | 'fatigue-brainfog'
+  | 'slouch-posture';
+
+export type DrivingDuration = 'short' | 'moderate' | 'long' | 'heavy';
+
+export type DriverGoal = 'instant-relief' | 'endurance' | 'spine-health' | 'alertness';
+
+export interface UserAssessmentProfile {
+  primaryIssue: DriverPrimaryIssue;
+  vehicle: VehicleType;
+  duration: DrivingDuration;
+  goal: DriverGoal;
+  completedAt: string;
+  customRoutineTitle: string;
+  prescribedRoutineId: string;
+  keyInsights: string[];
+}
+
+export type AccentColorTheme = 'ocean' | 'sunset' | 'forest' | 'aurora' | 'amber';
+
+export interface ThemeConfig {
+  id: AccentColorTheme;
+  name: string;
+  description: string;
+  primaryColor: string;
+  accentGradient: string;
+  badgeBg: string;
+  activeRing: string;
+  palette: {
+    50: string;
+    400: string;
+    500: string;
+    600: string;
+    glow: string;
+  };
 }

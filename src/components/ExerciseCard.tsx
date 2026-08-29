@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play, Sparkles, Clock, MapPin, ChevronRight, Activity } from 'lucide-react';
 import { Exercise, Routine } from '../types';
+import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
 
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -48,6 +49,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
       className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 transition-all cursor-pointer group flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-0.5"
     >
       <div>
+        {/* Animated Character Mini-Clip Stage */}
+        <div className="mb-3">
+          <ExerciseCharacterVisual 
+            exercise={exercise} 
+            variant="mini" 
+            interactive={false}
+          />
+        </div>
+
         {/* Top Badges */}
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md border ${getCategoryBadgeColor()}`}>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Play, Sparkles, ShieldAlert, CheckCircle2, Wind, Activity } from 'lucide-react';
+import { X, Play, Sparkles, ShieldAlert, CheckCircle2, Wind, Activity, ArrowLeft } from 'lucide-react';
 import { Exercise, Routine } from '../types';
+import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
 
 interface ExerciseDetailModalProps {
   exercise: Exercise | null;
@@ -34,27 +35,39 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+      <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative max-h-[88vh] overflow-y-auto">
         
-        {/* Header */}
+        {/* Header with Back & Close Buttons */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60">
-                {exercise.location}
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                ⏱️ {exercise.durationSeconds}s • {exercise.reps}
-              </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-950 text-slate-300 hover:text-white border border-slate-800 hover:bg-slate-800 transition-all flex items-center gap-1 text-xs font-bold"
+              title="Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-cyan-400" />
+              <span>Back</span>
+            </button>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60">
+                  {exercise.location}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  ⏱️ {exercise.durationSeconds}s • {exercise.reps}
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-extrabold text-white mt-0.5">
+                {exercise.name}
+              </h3>
             </div>
-            <h3 className="text-xl font-extrabold text-white mt-1">
-              {exercise.name}
-            </h3>
           </div>
 
           <button
             onClick={onClose}
             className="p-2 rounded-xl bg-slate-950 text-slate-400 hover:text-white border border-slate-800 transition-all"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -63,6 +76,16 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         {/* Content */}
         <div className="space-y-4 my-5">
           
+          {/* Veo-3 Cinema Clip / Character Stage with Biomechanics Controls */}
+          <div className="rounded-2xl overflow-hidden border border-slate-800">
+            <Veo3ExerciseViewer 
+              exercise={exercise}
+              variant="modal"
+              autoPlay={true}
+              onBack={onClose}
+            />
+          </div>
+
           {/* Olympic Coach Form Cue */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/70 to-slate-900 border border-cyan-800/60">
             <div className="flex items-start gap-3">

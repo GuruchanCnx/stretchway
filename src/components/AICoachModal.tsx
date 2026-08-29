@@ -13,7 +13,8 @@ import {
   Bike,
   Clock,
   Flame,
-  Layers
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
 import { Routine, ChatMessage, VehicleType } from '../types';
 
@@ -22,13 +23,15 @@ interface AICoachModalProps {
   onClose: () => void;
   onLaunchGeneratedRoutine: (routine: Routine) => void;
   currentVehicle: VehicleType;
+  initialPrompt?: string;
 }
 
 export const AICoachModal: React.FC<AICoachModalProps> = ({
   isOpen,
   onClose,
   onLaunchGeneratedRoutine,
-  currentVehicle
+  currentVehicle,
+  initialPrompt
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -52,10 +55,18 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
   const [generatedRoutine, setGeneratedRoutine] = useState<Routine | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const sentInitialRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (isOpen && initialPrompt && initialPrompt !== sentInitialRef.current) {
+      sentInitialRef.current = initialPrompt;
+      handleSendMessage(initialPrompt);
+    }
+  }, [isOpen, initialPrompt]);
 
   if (!isOpen) return null;
 
@@ -204,6 +215,15 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-950/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white border border-slate-800 hover:bg-slate-800 transition-all flex items-center gap-1 text-xs font-bold shadow-sm"
+              title="Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-cyan-400" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-400 p-0.5 flex items-center justify-center shadow-md shadow-cyan-500/20">
               <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-cyan-400" />

@@ -13,12 +13,15 @@ import {
   Flame, 
   Download, 
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   CheckCircle2,
   Clock,
   Heart,
   Droplets,
-  BookOpen
+  BookOpen,
+  Trash2,
+  Wand2
 } from 'lucide-react';
 import { 
   VehicleType, 
@@ -26,11 +29,17 @@ import {
   MuscleGroup, 
   Exercise, 
   Routine, 
-  UserProgress 
+  UserProgress,
+  AccentColorTheme,
+  UserAssessmentProfile
 } from './types';
 import { ALL_EXERCISES, CURATED_ROUTINES } from './data/exercises';
 import { SupportedLang, TRANSLATIONS } from './data/translations';
+import { THEME_CONFIGS } from './data/themes';
 import { Navbar } from './components/Navbar';
+import { HeroWall } from './components/HeroWall';
+import { OnboardingModal } from './components/OnboardingModal';
+import { BottomNav, AppTabType } from './components/BottomNav';
 import { InteractivePlayer } from './components/InteractivePlayer';
 import { BodyMap } from './components/BodyMap';
 import { BreathEngine } from './components/BreathEngine';
@@ -40,6 +49,16 @@ import { TripPlanner } from './components/TripPlanner';
 import { RoadLog } from './components/RoadLog';
 import { ExerciseCard } from './components/ExerciseCard';
 import { ExerciseDetailModal } from './components/ExerciseDetailModal';
+import { SmartRoutineCreator } from './components/SmartRoutineCreator';
+import { 
+  ensureAuthenticatedUser, 
+  syncUserProgressToFirestore, 
+  fetchUserProgressFromFirestore,
+  syncAssessmentProfileToFirestore,
+  fetchAssessmentProfileFromFirestore,
+  syncCustomRoutinesToFirestore,
+  fetchCustomRoutinesFromFirestore
+} from './services/firebase';
 
 export const App: React.FC = () => {
   // Navigation & filtering state
@@ -47,14 +66,49 @@ export const App: React.FC = () => {
   const [currentVehicle, setCurrentVehicle] = useState<VehicleType>('all');
   const [currentLang, setCurrentLang] = useState<SupportedLang>('en');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [accentTheme, setAccentTheme] = useState<AccentColorTheme>(() => {
+    const savedAccent = localStorage.getItem('stretchway_accent_theme');
+    if (savedAccent && (savedAccent in THEME_CONFIGS)) {
+      return savedAccent as AccentColorTheme;
+    }
+    return 'ocean';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<MuscleGroup | 'all'>('all');
+
+  // AI-Generated Custom Routines State
+  const [customRoutines, setCustomRoutines] = useState<Routine[]>(() => {
+    const saved = localStorage.getItem('stretchway_custom_routines');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved custom routines:', e);
+      }
+    }
+    return [];
+  });
 
   // Active workout player state
   const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
   const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<Exercise | null>(null);
   const [isAICoachOpen, setIsAICoachOpen] = useState(false);
+  const [aiCoachInitialPrompt, setAiCoachInitialPrompt] = useState<string>('');
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+
+  // Personalized Driver Assessment Profile
+  const [assessmentProfile, setAssessmentProfile] = useState<UserAssessmentProfile | null>(() => {
+    const saved = localStorage.getItem('stretchway_assessment_profile');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  });
 
   // User persistence progress
   const [userProgress, setUserProgress] = useState<UserProgress>(() => {
@@ -94,12 +148,115 @@ export const App: React.FC = () => {
     };
   });
 
-  // Save progress changes
+  // Save and sync assessment profile
+  const handleSaveAssessment = (profile: UserAssessmentProfile) => {
+    setAssessmentProfile(profile);
+    localStorage.setItem('stretchway_assessment_profile', JSON.stringify(profile));
+    
+    // Update active vehicle if user specified in assessment
+    if (profile.vehicle) {
+      setCurrentVehicle(profile.vehicle);
+    }
+
+    // Sync to Cloud Firestore
+    ensureAuthenticatedUser().then(user => {
+      if (user) {
+        syncAssessmentProfileToFirestore(user.uid, profile);
+      }
+    });
+  };
+
+  // Sync progress changes to localStorage and Firestore
   useEffect(() => {
     localStorage.setItem('stretchway_progress', JSON.stringify(userProgress));
+    
+    // Asynchronously synchronize with Cloud Firestore
+    ensureAuthenticatedUser().then(user => {
+      if (user) {
+        syncUserProgressToFirestore(user.uid, userProgress);
+      }
+    });
   }, [userProgress]);
 
-  // Handle theme
+  // Initial cloud restore on mount
+  useEffect(() => {
+    ensureAuthenticatedUser().then(async (user) => {
+      if (user) {
+        // Restore user progress
+        const cloudData = await fetchUserProgressFromFirestore(user.uid);
+        if (cloudData && cloudData.totalMinutesStretched !== undefined) {
+          setUserProgress(prev => ({
+            ...prev,
+            currentStreakDays: cloudData.currentStreakDays ?? prev.currentStreakDays,
+            totalMinutesStretched: Math.max(cloudData.totalMinutesStretched ?? 0, prev.totalMinutesStretched),
+            favoriteExerciseIds: cloudData.favoriteExerciseIds ?? prev.favoriteExerciseIds
+          }));
+        }
+
+        // Restore user assessment profile
+        const cloudProfile = await fetchAssessmentProfileFromFirestore(user.uid);
+        if (cloudProfile && cloudProfile.primaryIssue) {
+          setAssessmentProfile(cloudProfile);
+          localStorage.setItem('stretchway_assessment_profile', JSON.stringify(cloudProfile));
+        }
+
+        // Restore custom AI routines
+        const cloudCustomRoutines = await fetchCustomRoutinesFromFirestore(user.uid);
+        if (cloudCustomRoutines && Array.isArray(cloudCustomRoutines) && cloudCustomRoutines.length > 0) {
+          setCustomRoutines(prev => {
+            const existingIds = new Set(prev.map(r => r.id));
+            const newItems = cloudCustomRoutines.filter(r => !existingIds.has(r.id));
+            const merged = [...newItems, ...prev];
+            localStorage.setItem('stretchway_custom_routines', JSON.stringify(merged));
+            return merged;
+          });
+        }
+      }
+    });
+  }, []);
+
+  // Handle new custom routine creation from SmartRoutineCreator or Coach
+  const handleRoutineCreated = (newRoutine: Routine, autoStart: boolean = false) => {
+    setCustomRoutines(prev => {
+      const updated = [newRoutine, ...prev.filter(r => r.id !== newRoutine.id)];
+      localStorage.setItem('stretchway_custom_routines', JSON.stringify(updated));
+      ensureAuthenticatedUser().then(user => {
+        if (user) {
+          syncCustomRoutinesToFirestore(user.uid, updated);
+        }
+      });
+      return updated;
+    });
+
+    if (autoStart) {
+      setActiveRoutine(newRoutine);
+    }
+  };
+
+  // Handle custom routine removal
+  const handleDeleteCustomRoutine = (routineId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCustomRoutines(prev => {
+      const updated = prev.filter(r => r.id !== routineId);
+      localStorage.setItem('stretchway_custom_routines', JSON.stringify(updated));
+      ensureAuthenticatedUser().then(user => {
+        if (user) {
+          syncCustomRoutinesToFirestore(user.uid, updated);
+        }
+      });
+      return updated;
+    });
+  };
+
+  // Handle theme & accent color scheme
+  useEffect(() => {
+    localStorage.setItem('stretchway_accent_theme', accentTheme);
+    const cfg = THEME_CONFIGS[accentTheme] || THEME_CONFIGS.ocean;
+    document.documentElement.setAttribute('data-accent-theme', accentTheme);
+    document.documentElement.style.setProperty('--color-primary', cfg.primaryColor);
+    document.documentElement.style.setProperty('--color-primary-glow', cfg.palette.glow);
+  }, [accentTheme]);
+
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('light-mode');
@@ -192,8 +349,11 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
     return true;
   });
 
+  // Combine curated and user-generated custom AI routines
+  const allRoutines = [...customRoutines, ...CURATED_ROUTINES];
+
   // Filter routines by vehicle
-  const filteredRoutines = CURATED_ROUTINES.filter(r => {
+  const filteredRoutines = allRoutines.filter(r => {
     if (currentVehicle === 'all') return true;
     return r.vehicle === 'all' || r.vehicle === currentVehicle;
   });
@@ -209,6 +369,8 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         onSelectLang={setCurrentLang}
         theme={theme}
         onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        accentTheme={accentTheme}
+        onSelectAccentTheme={setAccentTheme}
         userProgress={userProgress}
         onOpenAICoach={() => setIsAICoachOpen(true)}
         onOpenQuickBreath={() => setActiveTab('breath')}
@@ -309,122 +471,182 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         </div>
       </nav>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+      {/* Main Container with bottom padding for BottomNav */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 space-y-8">
         
+        {/* Back to Protocols Navigation Bar for Sub-Views */}
+        {activeTab !== 'routines' && (
+          <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-lg animate-fade-in">
+            <button
+              onClick={() => setActiveTab('routines')}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700/80 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-all text-xs font-bold shadow-sm group active:scale-95"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span>Back to Protocols</span>
+            </button>
+
+            <div className="text-right">
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">Current Section</span>
+              <span className="text-xs font-extrabold text-slate-200 capitalize">
+                {activeTab === 'bodymap' && '🎯 Interactive Anatomy Map'}
+                {activeTab === 'breath' && '🌬️ Breath Mastery Engine'}
+                {activeTab === 'cockpit' && '💺 Cockpit Ergonomics Guide'}
+                {activeTab === 'trip' && '🗺️ Road Trip Interval Planner'}
+                {activeTab === 'library' && '📚 Mobility Drill Library'}
+                {activeTab === 'log' && '🔥 Recovery Dashboard & Log'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* TAB 1: CURATED ROUTINES & PROTOCOLS */}
         {activeTab === 'routines' && (
           <div className="space-y-8">
             
-            {/* Hero Banner with Quick AI Action */}
-            <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-cyan-950 via-slate-900 to-slate-950 border border-cyan-800/50 shadow-2xl overflow-hidden">
-              <div className="relative z-10 max-w-2xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="px-3 py-1 text-xs font-extrabold uppercase tracking-wider rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    Olympic Coach & Yoga Biomechanics
-                  </span>
-                  <span className="text-xs text-slate-400">Zero-Equipment Road Health</span>
-                </div>
-                
-                <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Eradicate Driver Stiffness & Spinal Compression.
-                </h1>
-                
-                <p className="text-sm sm:text-base text-slate-300 mt-2 leading-relaxed">
-                  Precision in-seat micro-drills, rest-stop traction, and diaphragmatic vagal pacing engineered to keep drivers, commuters, and motorcyclists pain-free.
-                </p>
+            {/* Rich Hero Wall with CTAs, Quick Pitstop launcher & Personalized Profile */}
+            <HeroWall
+              currentVehicle={currentVehicle}
+              onSelectVehicle={setCurrentVehicle}
+              userProgress={userProgress}
+              assessmentProfile={assessmentProfile}
+              onStartRoutine={(r) => setActiveRoutine(r)}
+              onOpenQuickDecompress={() => {
+                const q = CURATED_ROUTINES.find(r => r.id === 'car-quick-pitstop') || CURATED_ROUTINES[0];
+                setActiveRoutine(q);
+              }}
+              onOpenOnboarding={() => setIsOnboardingOpen(true)}
+              onOpenAICoach={(prompt) => {
+                if (prompt) setAiCoachInitialPrompt(prompt);
+                setIsAICoachOpen(true);
+              }}
+              onOpenBreath={() => setActiveTab('breath')}
+              onSelectTab={(tab) => setActiveTab(tab)}
+              curatedRoutines={CURATED_ROUTINES}
+            />
 
-                <div className="flex flex-wrap gap-3 mt-6">
-                  <button
-                    onClick={() => setActiveRoutine(CURATED_ROUTINES[0])}
-                    className="py-3 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Play className="w-4 h-4 fill-slate-950" />
-                    <span>Start 10-Min In-Seat Reset</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsAICoachOpen(true)}
-                    className="py-3 px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-2 transition-all"
-                  >
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                    <span>Generate AI Custom Protocol</span>
-                  </button>
-                </div>
+            {/* Curated Routines Grid Header & Smart Creator */}
+            <div className="space-y-6">
+              
+              {/* Smart Routine Creator Dashboard */}
+              <div id="smart-routine-creator-section">
+                <SmartRoutineCreator
+                  onRoutineCreated={handleRoutineCreated}
+                  currentVehicle={currentVehicle}
+                />
               </div>
 
-              {/* Decorative background visual icon */}
-              <Activity className="absolute -right-8 -bottom-8 w-64 h-64 text-cyan-500/5 pointer-events-none" />
-            </div>
-
-            {/* Curated Routines Grid */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-4">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                    Targeted Road Recovery Protocols
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Step-by-step guided audio & visual stretch sequences
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-black text-white">
+                      Curated & AI Synthesized Protocols
+                    </h2>
+                    {customRoutines.length > 0 && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold">
+                        {customRoutines.length} Custom AI
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Step-by-step guided audio & visual stretch sequences with Veo-3 4K anatomical clips
                   </p>
                 </div>
-                <span className="text-xs font-mono font-bold text-cyan-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-                  {filteredRoutines.length} Programs
+                <span className="text-xs font-mono font-bold text-cyan-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-auto">
+                  {filteredRoutines.length} Active Protocols
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRoutines.map((routine) => (
-                  <div
-                    key={routine.id}
-                    className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between hover:shadow-2xl hover:shadow-cyan-500/10 group"
-                  >
-                    <div>
-                      {/* Top Badges */}
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="px-3 py-1 text-xs font-extrabold uppercase tracking-wider rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-800/60">
-                          {routine.vehicle.toUpperCase()}
-                        </span>
-                        <span className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>{routine.durationMinutes} Min</span>
-                        </span>
-                      </div>
-
-                      {/* Title & Subtitle */}
-                      <h3 className="text-lg font-extrabold text-white group-hover:text-cyan-300 transition-colors leading-snug">
-                        {routine.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                        {routine.subtitle}
-                      </p>
-
-                      {/* Coach Rationale */}
-                      <div className="my-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
-                        <strong className="text-cyan-400 block mb-0.5">Olympic Coach Rationale:</strong>
-                        {routine.coachRationale}
-                      </div>
-
-                      {/* Target Areas */}
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {routine.targetAreas.map((area, i) => (
-                          <span key={i} className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-950 border border-slate-800 text-slate-400">
-                            {area}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button
-                      onClick={() => setActiveRoutine(routine)}
-                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                {filteredRoutines.map((routine) => {
+                  const isCustom = customRoutines.some(cr => cr.id === routine.id);
+                  return (
+                    <div
+                      key={routine.id}
+                      className={`p-6 rounded-3xl bg-slate-900/80 border transition-all flex flex-col justify-between hover:shadow-2xl hover:shadow-cyan-500/10 group relative overflow-hidden ${
+                        isCustom 
+                          ? 'border-cyan-500/60 shadow-lg shadow-cyan-500/10 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950' 
+                          : 'border-slate-800 hover:border-cyan-500/50'
+                      }`}
                     >
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      <span>Start Guided Session</span>
-                    </button>
-                  </div>
-                ))}
+                      {/* Ambient highlight for AI Generated routines */}
+                      {isCustom && (
+                        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-400" />
+                      )}
+
+                      <div>
+                        {/* Top Badges & Actions */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-3 py-1 text-xs font-extrabold uppercase tracking-wider rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-800/60">
+                              {routine.vehicle.toUpperCase()}
+                            </span>
+                            {isCustom && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-lg bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-cyan-300 border border-cyan-500/50 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-cyan-400" />
+                                <span>AI Custom Rx</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>{routine.durationMinutes} Min</span>
+                            </span>
+                            {isCustom && (
+                              <button
+                                onClick={(e) => handleDeleteCustomRoutine(routine.id, e)}
+                                title="Remove Custom Routine"
+                                className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-rose-950/80 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-500/50 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <h3 className="text-lg font-extrabold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                          {routine.title}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                          {routine.subtitle}
+                        </p>
+
+                        {/* Coach Rationale */}
+                        <div className="my-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
+                          <strong className="text-cyan-400 block mb-0.5 flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                            <span>Olympic Coach Rationale:</span>
+                          </strong>
+                          {routine.coachRationale}
+                        </div>
+
+                        {/* Target Areas */}
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {routine.targetAreas.map((area, i) => (
+                            <span key={i} className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-950 border border-slate-800 text-slate-400">
+                              {area}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button
+                        onClick={() => setActiveRoutine(routine)}
+                        className={`w-full py-3 px-4 rounded-2xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                          isCustom
+                            ? 'bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 shadow-cyan-500/25'
+                            : 'bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 shadow-cyan-500/20'
+                        }`}
+                      >
+                        <Play className="w-4 h-4 fill-slate-950" />
+                        <span>Start Guided Session</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -558,6 +780,12 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
           <RoadLog
             userProgress={userProgress}
             onExportSummary={handleExportSummary}
+            onStartRoutine={(r) => setActiveRoutine(r)}
+            onOpenAICoach={(prompt) => {
+              if (prompt) setAiCoachInitialPrompt(prompt);
+              setIsAICoachOpen(true);
+            }}
+            currentVehicle={currentVehicle}
           />
         )}
 
@@ -577,7 +805,7 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               Export Report
             </button>
             <span>•</span>
-            <button onClick={() => setIsAICoachOpen(true)} className="hover:text-cyan-400 transition-colors">
+            <button onClick={() => { setAiCoachInitialPrompt(''); setIsAICoachOpen(true); }} className="hover:text-cyan-400 transition-colors">
               AI Coach Lyra
             </button>
           </div>
@@ -609,9 +837,36 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
       {/* AI Biomechanics Coach Modal */}
       <AICoachModal
         isOpen={isAICoachOpen}
-        onClose={() => setIsAICoachOpen(false)}
-        onLaunchGeneratedRoutine={(r) => setActiveRoutine(r)}
+        onClose={() => {
+          setIsAICoachOpen(false);
+          setAiCoachInitialPrompt('');
+        }}
+        onLaunchGeneratedRoutine={(r) => handleRoutineCreated(r, true)}
         currentVehicle={currentVehicle}
+        initialPrompt={aiCoachInitialPrompt}
+      />
+
+      {/* Personalized Onboarding / Issue Tailoring Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        onSaveAssessment={handleSaveAssessment}
+        onLaunchRoutine={(r) => setActiveRoutine(r)}
+        initialVehicle={currentVehicle}
+      />
+
+      {/* Sticky Bottom Navigation Tabs */}
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => setActiveTab(tab)}
+        onOpenAICoach={() => {
+          setAiCoachInitialPrompt('');
+          setIsAICoachOpen(true);
+        }}
+        onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        userProgress={userProgress}
+        currentVehicle={currentVehicle}
+        onSelectVehicle={setCurrentVehicle}
       />
 
     </div>
