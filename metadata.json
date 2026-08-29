@@ -1,0 +1,6 @@
+{
+  "name": "StretchWay",
+  "description": "Ergonomic & Mobility Platform for Drivers and Commuters with Olympic Coach & Yoga Biomechanics Guidance, Interactive Stretches, Breath Pacer, and AI Road Doctor.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
