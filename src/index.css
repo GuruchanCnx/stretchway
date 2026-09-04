@@ -11,7 +11,7 @@
     --text-secondary: #94a3b8;
   }
 
-  .light-mode {
+  .light, .light-mode, [data-theme="light"] {
     --bg-app: #f8fafc;
     --text-primary: #0f172a;
     --text-secondary: #475569;
@@ -27,103 +27,289 @@
   }
 }
 
-/* Comprehensive Light Mode Overrides for High Contrast & Crisp Readability */
-html.light-mode body {
+/* =========================================================
+   COMPREHENSIVE, BULLETPROOF LIGHT MODE STYLES
+   Ensures 100% legibility, crisp contrast, and elegant design
+   ========================================================= */
+
+html.light-mode body,
+html.light body,
+[data-theme="light"] body {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-html.light-mode .bg-slate-950 {
+/* 1. Surfaces & Backgrounds */
+html.light-mode [class*="bg-slate-950"],
+html.light [class*="bg-slate-950"],
+[data-theme="light"] [class*="bg-slate-950"] {
   background-color: #f8fafc !important;
 }
 
-html.light-mode .bg-slate-950\/80,
-html.light-mode .bg-slate-950\/90,
-html.light-mode .bg-slate-950\/70,
-html.light-mode .bg-slate-950\/60,
-html.light-mode .bg-slate-950\/40 {
-  background-color: rgba(248, 250, 252, 0.92) !important;
-}
-
-html.light-mode .bg-slate-900 {
+html.light-mode [class*="bg-slate-900"],
+html.light [class*="bg-slate-900"],
+[data-theme="light"] [class*="bg-slate-900"] {
   background-color: #ffffff !important;
 }
 
-html.light-mode .bg-slate-900\/95,
-html.light-mode .bg-slate-900\/90,
-html.light-mode .bg-slate-900\/80,
-html.light-mode .bg-slate-900\/70,
-html.light-mode .bg-slate-900\/60,
-html.light-mode .bg-slate-900\/50 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-}
-
-html.light-mode .bg-slate-900\/40,
-html.light-mode .bg-slate-900\/30 {
-  background-color: rgba(241, 245, 249, 0.8) !important;
-}
-
-html.light-mode .bg-slate-800,
-html.light-mode .bg-slate-800\/80,
-html.light-mode .bg-slate-800\/60 {
+html.light-mode [class*="bg-slate-800"],
+html.light [class*="bg-slate-800"],
+[data-theme="light"] [class*="bg-slate-800"] {
   background-color: #f1f5f9 !important;
 }
 
-html.light-mode .border-slate-800,
-html.light-mode .border-slate-800\/80,
-html.light-mode .border-slate-800\/60,
-html.light-mode .border-slate-800\/40 {
+/* Sticky Headers & Navigation Bars */
+html.light-mode header,
+html.light-mode nav:not([class*="bg-gradient"]),
+html.light header,
+html.light nav:not([class*="bg-gradient"]),
+[data-theme="light"] header,
+[data-theme="light"] nav:not([class*="bg-gradient"]) {
+  background-color: rgba(255, 255, 255, 0.94) !important;
   border-color: #e2e8f0 !important;
 }
 
-html.light-mode .border-slate-700,
-html.light-mode .border-slate-700\/80,
-html.light-mode .border-slate-700\/60 {
-  border-color: #cbd5e1 !important;
+/* 2. Overriding Dark Background Gradients */
+html.light-mode [class*="from-slate-950"],
+html.light-mode [class*="from-slate-900"],
+html.light [class*="from-slate-950"],
+html.light [class*="from-slate-900"],
+[data-theme="light"] [class*="from-slate-950"],
+[data-theme="light"] [class*="from-slate-900"] {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-to: #f8fafc !important;
+  --tw-gradient-stops: #ffffff, #f8fafc !important;
+  background-image: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
 }
 
-html.light-mode .text-white {
+/* 3. Borders */
+html.light-mode [class*="border-slate-800"],
+html.light-mode [class*="border-slate-700"],
+html.light [class*="border-slate-800"],
+html.light [class*="border-slate-700"],
+[data-theme="light"] [class*="border-slate-800"],
+[data-theme="light"] [class*="border-slate-700"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* 4. Headings & Typography */
+html.light-mode h1:not([class*="bg-clip-text"]),
+html.light-mode h2:not([class*="bg-clip-text"]),
+html.light-mode h3:not([class*="bg-clip-text"]),
+html.light-mode h4:not([class*="bg-clip-text"]),
+html.light-mode h5:not([class*="bg-clip-text"]),
+html.light-mode h6:not([class*="bg-clip-text"]),
+html.light h1:not([class*="bg-clip-text"]),
+html.light h2:not([class*="bg-clip-text"]),
+html.light h3:not([class*="bg-clip-text"]),
+html.light h4:not([class*="bg-clip-text"]),
+html.light h5:not([class*="bg-clip-text"]),
+html.light h6:not([class*="bg-clip-text"]),
+[data-theme="light"] h1:not([class*="bg-clip-text"]),
+[data-theme="light"] h2:not([class*="bg-clip-text"]),
+[data-theme="light"] h3:not([class*="bg-clip-text"]),
+[data-theme="light"] h4:not([class*="bg-clip-text"]),
+[data-theme="light"] h5:not([class*="bg-clip-text"]),
+[data-theme="light"] h6:not([class*="bg-clip-text"]) {
   color: #0f172a !important;
 }
 
-html.light-mode .text-slate-100 {
-  color: #0f172a !important;
+/* Preserve Gradient Clip Text (e.g. App Brand Title) */
+html.light-mode .bg-clip-text,
+html.light .bg-clip-text,
+[data-theme="light"] .bg-clip-text {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
-html.light-mode .text-slate-200 {
+/* Surface text elements (carefully protect buttons and colored badges) */
+html.light-mode .text-slate-100:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+html.light-mode .text-slate-200:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+html.light .text-slate-100:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+html.light .text-slate-200:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+[data-theme="light"] .text-slate-100:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+[data-theme="light"] .text-slate-200:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white) {
   color: #1e293b !important;
 }
 
-html.light-mode .text-slate-300 {
+html.light-mode .text-slate-300:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+html.light .text-slate-300:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white),
+[data-theme="light"] .text-slate-300:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not(.keep-white) {
   color: #334155 !important;
 }
 
-html.light-mode .text-slate-400 {
+html.light-mode .text-slate-400:not(button):not(button *),
+html.light .text-slate-400:not(button):not(button *),
+[data-theme="light"] .text-slate-400:not(button):not(button *) {
   color: #64748b !important;
 }
 
-html.light-mode .text-slate-500 {
+html.light-mode .text-slate-500:not(button):not(button *),
+html.light .text-slate-500:not(button):not(button *),
+[data-theme="light"] .text-slate-500:not(button):not(button *) {
   color: #64748b !important;
 }
 
-html.light-mode .shadow-2xl,
-html.light-mode .shadow-xl {
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04) !important;
+/* Headings or text with .text-white (exclude colored buttons/badges) */
+html.light-mode .text-white:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="from-"]):not(.keep-white),
+html.light .text-white:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="from-"]):not(.keep-white),
+[data-theme="light"] .text-white:not(button):not(button *):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-purple"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="from-"]):not(.keep-white) {
+  color: #0f172a !important;
 }
 
-html.light-mode header {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  border-bottom-color: #e2e8f0 !important;
+/* 5. Inactive Buttons on Surfaces */
+html.light-mode button[class*="bg-slate-900"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+html.light button[class*="bg-slate-900"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+[data-theme="light"] button[class*="bg-slate-900"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]) {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light-mode button[class*="bg-slate-900"]:hover:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+html.light button[class*="bg-slate-900"]:hover:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+[data-theme="light"] button[class*="bg-slate-900"]:hover:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]) {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light-mode button[class*="bg-slate-950"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+html.light button[class*="bg-slate-950"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]),
+[data-theme="light"] button[class*="bg-slate-950"]:not([class*="from-"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]) {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 6. Clean Pastel Badges in Light Mode */
+html.light-mode [class*="bg-cyan-950"],
+html.light [class*="bg-cyan-950"],
+[data-theme="light"] [class*="bg-cyan-950"] {
+  background-color: #ecfeff !important;
+  color: #0891b2 !important;
+  border-color: #a5f3fc !important;
+}
+
+html.light-mode [class*="bg-teal-950"],
+html.light [class*="bg-teal-950"],
+[data-theme="light"] [class*="bg-teal-950"] {
+  background-color: #f0fdfa !important;
+  color: #0d9488 !important;
+  border-color: #99f6e4 !important;
+}
+
+html.light-mode [class*="bg-emerald-950"],
+html.light [class*="bg-emerald-950"],
+[data-theme="light"] [class*="bg-emerald-950"] {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html.light-mode [class*="bg-purple-950"],
+html.light [class*="bg-purple-950"],
+[data-theme="light"] [class*="bg-purple-950"] {
+  background-color: #f5f3ff !important;
+  color: #7c3aed !important;
+  border-color: #ddd6fe !important;
+}
+
+html.light-mode [class*="bg-indigo-950"],
+html.light [class*="bg-indigo-950"],
+[data-theme="light"] [class*="bg-indigo-950"] {
+  background-color: #eef2ff !important;
+  color: #4f46e5 !important;
+  border-color: #c7d2fe !important;
+}
+
+html.light-mode [class*="bg-amber-950"],
+html.light [class*="bg-amber-950"],
+[data-theme="light"] [class*="bg-amber-950"] {
+  background-color: #fefce8 !important;
+  color: #b45309 !important;
+  border-color: #fef08a !important;
+}
+
+html.light-mode [class*="bg-orange-950"],
+html.light [class*="bg-orange-950"],
+[data-theme="light"] [class*="bg-orange-950"] {
+  background-color: #fff7ed !important;
+  color: #c2410c !important;
+  border-color: #fed7aa !important;
+}
+
+/* 7. Dialogs, Modals, Overlays & Inputs */
+html.light-mode .fixed.inset-0,
+html.light .fixed.inset-0,
+[data-theme="light"] .fixed.inset-0 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
+
+html.light-mode .fixed .bg-slate-900,
+html.light-mode .fixed [class*="bg-slate-900"],
+html.light .fixed .bg-slate-900,
+html.light .fixed [class*="bg-slate-900"],
+[data-theme="light"] .fixed .bg-slate-900,
+[data-theme="light"] .fixed [class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.2) !important;
 }
 
 html.light-mode input,
+html.light-mode textarea,
 html.light-mode select,
-html.light-mode textarea {
+html.light input,
+html.light textarea,
+html.light select,
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 
+html.light-mode input::placeholder,
+html.light-mode textarea::placeholder,
+html.light input::placeholder,
+html.light textarea::placeholder,
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* 8. Recharts & Visuals in Light Mode */
+html.light-mode .recharts-cartesian-grid line,
+html.light .recharts-cartesian-grid line,
+[data-theme="light"] .recharts-cartesian-grid line {
+  stroke: #e2e8f0 !important;
+}
+
+html.light-mode .recharts-text,
+html.light .recharts-text,
+[data-theme="light"] .recharts-text {
+  fill: #64748b !important;
+}
+
+html.light-mode svg path[fill="#0f172a"],
+html.light svg path[fill="#0f172a"],
+[data-theme="light"] svg path[fill="#0f172a"] {
+  fill: #e2e8f0 !important;
+  stroke: #cbd5e1 !important;
+}
+
+/* 9. Box Shadows for Light Mode */
+html.light-mode .shadow-2xl,
+html.light-mode .shadow-xl,
+html.light .shadow-2xl,
+html.light .shadow-xl,
+[data-theme="light"] .shadow-2xl,
+[data-theme="light"] .shadow-xl {
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Animations */
 @keyframes pulse-ring {
   0% { transform: scale(0.95); opacity: 0.8; }
   50% { transform: scale(1.05); opacity: 0.4; }
@@ -157,4 +343,15 @@ html.light-mode textarea {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(56, 189, 248, 0.5);
+}
+
+html.light-mode ::-webkit-scrollbar-track,
+html.light ::-webkit-scrollbar-track,
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+html.light-mode ::-webkit-scrollbar-thumb,
+html.light ::-webkit-scrollbar-thumb,
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
 }

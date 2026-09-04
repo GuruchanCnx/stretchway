@@ -353,9 +353,32 @@ export const App: React.FC = () => {
     setUserProgress(prev => ({
       ...prev,
       breathSessionsCompleted: prev.breathSessionsCompleted + 1,
-      totalMinutesStretched: prev.totalMinutesStretched + 2
+      totalMinutesStretched: prev.totalMinutesStretched + 2,
+      lastSessionDate: new Date().toISOString().split('T')[0],
+      completedHistory: [
+        ...prev.completedHistory,
+        {
+          id: `hist-breath-${Date.now()}`,
+          title: `${name} (${cycles} cycles)`,
+          date: 'Today',
+          durationMinutes: 2,
+          feelingBefore: 3,
+          feelingAfter: 5
+        }
+      ]
     }));
   };
+
+  // Calculate today's mobility minutes from completed history
+  const todayMinutes = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return userProgress.completedHistory.reduce((total, item) => {
+      if (item.date === 'Today' || item.date === todayStr || item.date?.startsWith(todayStr)) {
+        return total + (Number(item.durationMinutes) || 0);
+      }
+      return total;
+    }, 0);
+  }, [userProgress.completedHistory]);
 
   const handleExportSummary = () => {
     const reportText = `===========================================
@@ -409,7 +432,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+    <div className={`min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950 transition-colors duration-300 ${
+      theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-slate-950 text-slate-100'
+    }`}>
       
       {/* Top Navbar */}
       <Navbar
@@ -433,7 +458,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
       />
 
       {/* Hero Category Navigation Bar */}
-      <nav className="sticky top-16 sm:top-20 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80">
+      <nav className={`sticky top-16 sm:top-20 z-30 backdrop-blur-md border-b transition-colors duration-300 ${
+        theme === 'light' ? 'bg-white/90 border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800/80'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-2 py-2.5 overflow-x-auto no-scrollbar">
             
@@ -442,7 +469,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'routines'
                   ? 'bg-gradient-to-r from-cyan-500 to-sky-600 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Activity className="w-4 h-4" />
@@ -454,7 +483,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'bodymap'
                   ? 'bg-gradient-to-r from-cyan-500 to-sky-600 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -466,7 +497,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'breath'
                   ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 shadow-md shadow-teal-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Wind className="w-4 h-4" />
@@ -478,7 +511,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'cockpit'
                   ? 'bg-gradient-to-r from-cyan-500 to-sky-600 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Compass className="w-4 h-4" />
@@ -490,7 +525,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'trip'
                   ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Navigation className="w-4 h-4" />
@@ -502,7 +539,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'library'
                   ? 'bg-gradient-to-r from-cyan-500 to-sky-600 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -514,7 +553,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 activeTab === 'log'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Flame className="w-4 h-4" />
@@ -530,10 +571,16 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         
         {/* Back to Protocols Navigation Bar for Sub-Views */}
         {activeTab !== 'routines' && (
-          <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-lg animate-fade-in">
+          <div className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border backdrop-blur-md shadow-lg animate-fade-in ${
+            theme === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'
+          }`}>
             <button
               onClick={() => setActiveTab('routines')}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700/80 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-all text-xs font-bold shadow-sm group active:scale-95"
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold shadow-sm group active:scale-95 transition-all ${
+                theme === 'light'
+                  ? 'bg-slate-50 border-slate-200 text-cyan-700 hover:bg-slate-100'
+                  : 'bg-slate-950 border-slate-700/80 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800'
+              }`}
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
               <span>Back to Protocols</span>
@@ -541,7 +588,9 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
 
             <div className="text-right">
               <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">Current Section</span>
-              <span className="text-xs font-extrabold text-slate-200 capitalize">
+              <span className={`text-xs font-extrabold capitalize ${
+                theme === 'light' ? 'text-slate-800' : 'text-slate-200'
+              }`}>
                 {activeTab === 'bodymap' && '🎯 Interactive Anatomy Map'}
                 {activeTab === 'breath' && '🌬️ Breath Mastery Engine'}
                 {activeTab === 'cockpit' && '💺 Cockpit Ergonomics Guide'}
@@ -973,6 +1022,7 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         userProgress={userProgress}
         currentVehicle={currentVehicle}
         onSelectVehicle={setCurrentVehicle}
+        theme={theme}
       />
 
     </div>
