@@ -12,7 +12,10 @@ import {
   Download,
   Activity,
   Palette,
-  Check
+  Check,
+  Target,
+  Settings,
+  Zap
 } from 'lucide-react';
 import { VehicleType, UserProgress, AccentColorTheme } from '../types';
 import { SupportedLang, TRANSLATIONS } from '../data/translations';
@@ -32,6 +35,10 @@ interface NavbarProps {
   onOpenQuickBreath: () => void;
   activeTab: string;
   onSelectTab: (tab: string) => void;
+  dailyGoalMinutes?: number;
+  todayMinutes?: number;
+  onOpenDailyGoalModal?: () => void;
+  onOpenUserSettings?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -47,12 +54,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAICoach,
   onOpenQuickBreath,
   activeTab,
-  onSelectTab
+  onSelectTab,
+  dailyGoalMinutes = 15,
+  todayMinutes = 0,
+  onOpenDailyGoalModal,
+  onOpenUserSettings
 }) => {
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
   const currentAccent = THEME_CONFIGS[accentTheme] || THEME_CONFIGS.ocean;
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Goal progress calculation
+  const goalProgressPercent = Math.min(100, Math.round((todayMinutes / Math.max(1, dailyGoalMinutes)) * 100));
+  const circleCircumference = 2 * Math.PI * 13; // r = 13 => ~81.68
+  const strokeOffset = circleCircumference - (circleCircumference * goalProgressPercent) / 100;
+  const isGoalAchieved = todayMinutes >= dailyGoalMinutes && dailyGoalMinutes > 0;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -120,6 +137,59 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Bar */}
           <div className="flex items-center space-x-2 sm:space-x-3">
             
+            {/* Daily Goal Circular Progress Bar */}
+            <button
+              onClick={onOpenDailyGoalModal}
+              className="relative flex items-center gap-1.5 p-1.5 px-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 transition-all group active:scale-95"
+              title={`Daily Mobility Goal: ${todayMinutes}/${dailyGoalMinutes} mins (${goalProgressPercent}%) - Tap to adjust target`}
+            >
+              <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+                <svg className="w-7 h-7 -rotate-90 transform" viewBox="0 0 32 32">
+                  {/* Background track */}
+                  <circle
+                    cx="16"
+                    cy="16"
+                    r="13"
+                    className="text-slate-800"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="transparent"
+                  />
+                  {/* Progress arc */}
+                  <circle
+                    cx="16"
+                    cy="16"
+                    r="13"
+                    className={`transition-all duration-700 ease-out ${
+                      isGoalAchieved ? 'text-emerald-400' : 'text-cyan-400'
+                    }`}
+                    strokeWidth="3"
+                    strokeDasharray={circleCircumference}
+                    strokeDashoffset={strokeOffset}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {isGoalAchieved ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <span className="text-[9px] font-black font-mono text-cyan-300">
+                      {todayMinutes}m
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="hidden xl:flex flex-col text-left">
+                <span className="text-[9px] font-black uppercase text-slate-400 leading-none">Goal</span>
+                <span className="text-[11px] font-bold text-white font-mono leading-tight">
+                  {todayMinutes}/{dailyGoalMinutes}m
+                </span>
+              </div>
+            </button>
+
             {/* Streak Counter */}
             <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold" title="Daily Relief Streak">
               <Flame className="w-4 h-4 text-amber-500 fill-amber-500 animate-bounce" />
@@ -254,6 +324,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
             </button>
+
+            {/* User Settings (Haptics, Pulse, Veo-3) */}
+            {onOpenUserSettings && (
+              <button
+                onClick={onOpenUserSettings}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 transition-all"
+                title="Haptic Pulse & Engine Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
 
 
           </div>

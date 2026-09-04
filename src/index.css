@@ -1,18 +1,127 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-heading: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+    --bg-app: #020617;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+  }
+
+  .light-mode {
+    --bg-app: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
   }
 
   body {
     font-family: var(--font-sans);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }
+}
+
+/* Comprehensive Light Mode Overrides for High Contrast & Crisp Readability */
+html.light-mode body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light-mode .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html.light-mode .bg-slate-950\/80,
+html.light-mode .bg-slate-950\/90,
+html.light-mode .bg-slate-950\/70,
+html.light-mode .bg-slate-950\/60,
+html.light-mode .bg-slate-950\/40 {
+  background-color: rgba(248, 250, 252, 0.92) !important;
+}
+
+html.light-mode .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html.light-mode .bg-slate-900\/95,
+html.light-mode .bg-slate-900\/90,
+html.light-mode .bg-slate-900\/80,
+html.light-mode .bg-slate-900\/70,
+html.light-mode .bg-slate-900\/60,
+html.light-mode .bg-slate-900\/50 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+html.light-mode .bg-slate-900\/40,
+html.light-mode .bg-slate-900\/30 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+html.light-mode .bg-slate-800,
+html.light-mode .bg-slate-800\/80,
+html.light-mode .bg-slate-800\/60 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light-mode .border-slate-800,
+html.light-mode .border-slate-800\/80,
+html.light-mode .border-slate-800\/60,
+html.light-mode .border-slate-800\/40 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light-mode .border-slate-700,
+html.light-mode .border-slate-700\/80,
+html.light-mode .border-slate-700\/60 {
+  border-color: #cbd5e1 !important;
+}
+
+html.light-mode .text-white {
+  color: #0f172a !important;
+}
+
+html.light-mode .text-slate-100 {
+  color: #0f172a !important;
+}
+
+html.light-mode .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html.light-mode .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light-mode .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light-mode .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light-mode .shadow-2xl,
+html.light-mode .shadow-xl {
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light-mode header {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.light-mode input,
+html.light-mode select,
+html.light-mode textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
 
 @keyframes pulse-ring {

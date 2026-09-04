@@ -1,7 +1,9 @@
-import React from 'react';
-import { Play, Sparkles, Clock, MapPin, ChevronRight, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, Sparkles, Clock, MapPin, ChevronRight, Activity, Video } from 'lucide-react';
 import { Exercise, Routine } from '../types';
 import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
+import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
+import { getVeoClipForExercise } from '../data/veoClips';
 
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -14,6 +16,9 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   onOpenDetail,
   onStartSingle
 }) => {
+  const [viewMode, setViewMode] = useState<'kinetic' | 'veo3'>('kinetic');
+  const clipMeta = getVeoClipForExercise(exercise);
+
   const handleQuickStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     const singleRoutine: Routine = {
@@ -46,26 +51,73 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   return (
     <div 
       onClick={() => onOpenDetail(exercise)}
-      className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 transition-all cursor-pointer group flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-0.5"
+      className="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 transition-all cursor-pointer group flex flex-col justify-between hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-0.5"
     >
       <div>
-        {/* Animated Character Mini-Clip Stage */}
-        <div className="mb-3">
-          <ExerciseCharacterVisual 
-            exercise={exercise} 
-            variant="mini" 
-            interactive={false}
-          />
+        {/* Visual Stage with Kinetic vs Veo-3 4K Switcher */}
+        <div className="mb-3 relative">
+          <div className="flex items-center justify-between mb-2">
+            <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md border ${getCategoryBadgeColor()}`}>
+              {exercise.category}
+            </span>
+
+            {/* Toggle between Kinetic Rig & Veo-3 4K Demo */}
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-950 border border-slate-800"
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('kinetic')}
+                className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all flex items-center gap-1 ${
+                  viewMode === 'kinetic'
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <Activity className="w-2.5 h-2.5" />
+                <span>Rig</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('veo3')}
+                className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all flex items-center gap-1 ${
+                  viewMode === 'veo3'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-black'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <Video className="w-2.5 h-2.5" />
+                <span>Veo-3</span>
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'kinetic' ? (
+            <ExerciseCharacterVisual 
+              exercise={exercise} 
+              variant="mini" 
+              interactive={false}
+            />
+          ) : (
+            <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-800/80 relative group/video">
+              <Veo3ExerciseViewer
+                exercise={exercise}
+                variant="mini"
+                autoPlay={false}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Top Badges */}
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md border ${getCategoryBadgeColor()}`}>
-            {exercise.category}
-          </span>
+        {/* Duration & Intensity */}
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
             <Clock className="w-3 h-3 text-cyan-400" />
             <span>{exercise.durationSeconds}s</span>
+          </span>
+          <span className="text-[10px] text-cyan-400 font-mono font-bold uppercase">
+            {clipMeta.badgeText}
           </span>
         </div>
 
@@ -75,7 +127,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         </h4>
 
         {/* Form Cue Snippet */}
-        <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
           {exercise.formCues}
         </p>
 
@@ -95,7 +147,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-800/60">
+      <div className="flex items-center justify-between pt-3.5 mt-3.5 border-t border-slate-800/60">
         <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
           <MapPin className="w-3 h-3 text-teal-400" />
           <span>{exercise.location}</span>
@@ -113,3 +165,4 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     </div>
   );
 };
+

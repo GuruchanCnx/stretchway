@@ -14,9 +14,15 @@ import {
   Clock,
   Flame,
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  Video,
+  Zap,
+  Activity
 } from 'lucide-react';
-import { Routine, ChatMessage, VehicleType } from '../types';
+import { Routine, ChatMessage, VehicleType, Exercise } from '../types';
+import { EXERCISE_DATABASE } from '../data/exercises';
+import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
+import { getVeoClipForExercise } from '../data/veoClips';
 
 interface AICoachModalProps {
   isOpen: boolean;
@@ -37,13 +43,54 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
     {
       id: 'welcome',
       role: 'coach',
-      content: `Hello! I'm Coach Lyra, your Olympic Gymnastics & Yoga Biomechanics Coach for road health. What vehicle are you operating, and where in your spine or limbs are you feeling tightness?`,
+      content: `Hello! I'm Coach Lyra, your Olympic Gymnastics & Yoga Biomechanics Coach for road health. Select a Quick Action diagnostic tag below or describe your spinal tension to prescribe an instant Veo-3 4K mobility protocol.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [inputMsg, setInputMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'generator'>('chat');
+  const [activeVeoExercise, setActiveVeoExercise] = useState<Exercise | null>(null);
+
+  // Quick Action diagnostic tags
+  const quickActions = [
+    {
+      label: 'Text Neck',
+      query: 'Diagnose and prescribe an Olympic cervical decompression protocol for acute Text Neck from driving and phone use.',
+      icon: '⚡',
+      exerciseId: 'car-neck-rolls'
+    },
+    {
+      label: 'Lower Back Stiffness',
+      query: 'I have acute Lower Back Stiffness and lumbar disc tension from prolonged sitting behind the wheel.',
+      icon: '🧘',
+      exerciseId: 'car-pelvic-tilt'
+    },
+    {
+      label: 'Wrist Fatigue',
+      query: 'Relieve throttle and steering wheel Wrist Fatigue and carpal tunnel numbness with biomechanical stretches.',
+      icon: '🤲',
+      exerciseId: 'car-wrist-rotations'
+    },
+    {
+      label: 'Highway Drowsiness',
+      query: 'Emergency 3-minute diaphragmatic alertness protocol for highway drowsiness and brain fog.',
+      icon: '🔥',
+      exerciseId: 'car-chest-opener'
+    },
+    {
+      label: 'Sciatica / Piriformis',
+      query: 'Alleviate sciatic nerve pinching, hamstring slide, and piriformis spasms from car seat angle.',
+      icon: '🛡️',
+      exerciseId: 'car-hamstring-slide'
+    },
+    {
+      label: 'Tight Hip Flexors',
+      query: 'Release constricted psoas and hip flexor tension caused by hours of accelerator pedal use.',
+      icon: '✨',
+      exerciseId: 'car-shoulder-rolls'
+    }
+  ];
 
   // Generator form state
   const [genVehicle, setGenVehicle] = useState<'car' | 'two-wheeler' | 'truck'>(
@@ -277,18 +324,94 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col overflow-hidden bg-slate-950/40">
             
-            {/* Quick Prompts Bar */}
-            <div className="p-3 border-b border-slate-800/60 flex gap-2 overflow-x-auto no-scrollbar">
-              {quickPrompts.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(q)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-cyan-300 text-xs font-medium whitespace-nowrap transition-all"
-                >
-                  ⚡ {q}
-                </button>
-              ))}
+            {/* Quick Actions Diagnostic Section */}
+            <div className="p-3.5 border-b border-slate-800/80 bg-slate-900/50">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5" />
+                  Quick Actions • Instant Biomechanical Diagnosis
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+                  Veo-3 4K Ready
+                </span>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {quickActions.map((qa, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const matchedEx = EXERCISE_DATABASE.find(e => e.id === qa.exerciseId);
+                      if (matchedEx) setActiveVeoExercise(matchedEx);
+                      handleSendMessage(qa.query);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 text-slate-200 hover:text-cyan-300 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                  >
+                    <span>{qa.icon}</span>
+                    <span>{qa.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Veo-3 4K Exercise Video Recommendation Preview (if active) */}
+            {activeVeoExercise && (
+              <div className="p-3.5 bg-slate-900/80 border-b border-cyan-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="w-20 h-14 rounded-xl overflow-hidden shrink-0 border border-cyan-500/40 relative shadow-md">
+                    <Veo3ExerciseViewer
+                      exercise={activeVeoExercise}
+                      variant="mini"
+                      autoPlay={false}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-950 text-cyan-300 border border-cyan-800/80">
+                        Veo-3 4K Model
+                      </span>
+                      <span className="text-xs font-bold text-white line-clamp-1">{activeVeoExercise.name}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                      {activeVeoExercise.formCues}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => {
+                      const singleRoutine: Routine = {
+                        id: `veo-${activeVeoExercise.id}`,
+                        title: activeVeoExercise.name,
+                        subtitle: `Targeted Veo-3 Biomechanical Reset`,
+                        category: activeVeoExercise.category,
+                        vehicle: currentVehicle,
+                        durationMinutes: Math.ceil(activeVeoExercise.durationSeconds / 60),
+                        intensity: activeVeoExercise.intensity,
+                        targetAreas: activeVeoExercise.targetMuscles,
+                        coachRationale: activeVeoExercise.biomechanicsRationale,
+                        exercises: [activeVeoExercise]
+                      };
+                      onLaunchGeneratedRoutine(singleRoutine);
+                      onClose();
+                    }}
+                    className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-md shadow-cyan-500/20"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Launch Protocol</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveVeoExercise(null)}
+                    className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800"
+                    title="Dismiss video clip"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Chat History List */}
             <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">

@@ -33,6 +33,8 @@ import {
 } from 'recharts';
 import { UserProgress, Routine, VehicleType, SorenessAssessmentResult } from '../types';
 import { CURATED_ROUTINES } from '../data/exercises';
+import { ConsistencyHeatmap } from './ConsistencyHeatmap';
+import { SorenessHeatmap } from './SorenessHeatmap';
 
 interface RoadLogProps {
   userProgress: UserProgress;
@@ -502,6 +504,22 @@ export const RoadLog: React.FC<RoadLogProps> = ({
           <p className="text-[11px] text-slate-500 mt-1">Average comfort increase</p>
         </div>
 
+      </div>
+
+      {/* 35-Day Consistency Heatmap (GitHub-style Contribution Matrix) */}
+      <div className="mb-8">
+        <ConsistencyHeatmap userProgress={userProgress} />
+      </div>
+
+      {/* Interactive Clickable Soreness Heatmap */}
+      <div className="mb-8">
+        <SorenessHeatmap 
+          onConsultCoach={(prompt) => {
+            if (onOpenAICoach) onOpenAICoach(prompt);
+          }}
+          onStartRoutine={onStartRoutine}
+          currentVehicle={currentVehicle}
+        />
       </div>
 
       {/* AI SORENESS & BIOMECHANICAL ASSESSMENT PROMPT & CARD */}

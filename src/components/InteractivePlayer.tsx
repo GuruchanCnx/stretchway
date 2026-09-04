@@ -17,7 +17,9 @@ import {
   Heart,
   ChevronRight,
   Flame,
-  ArrowLeft
+  ArrowLeft,
+  Vibrate,
+  Zap
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Routine, Exercise } from '../types';
@@ -46,6 +48,12 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('stretchway_haptics') !== 'false';
+  });
+  const [pulseCountdownEnabled, setPulseCountdownEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('stretchway_pulse_countdown') !== 'false';
+  });
   const [isCompleted, setIsCompleted] = useState(false);
   const [feelingBefore, setFeelingBefore] = useState(3);
   const [feelingAfter, setFeelingAfter] = useState(5);
@@ -53,6 +61,24 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
 
   const currentExercise: Exercise = routine.exercises[currentIdx] || routine.exercises[0];
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const togglePulseCountdown = () => {
+    const next = !pulseCountdownEnabled;
+    setPulseCountdownEnabled(next);
+    localStorage.setItem('stretchway_pulse_countdown', String(next));
+    if (next && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([60]);
+    }
+  };
+
+  const toggleHaptics = () => {
+    const next = !hapticsEnabled;
+    setHapticsEnabled(next);
+    localStorage.setItem('stretchway_haptics', String(next));
+    if (next && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([100]);
+    }
+  };
 
   // Trigger voice cue on new exercise
   useEffect(() => {
@@ -66,7 +92,7 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
     }
   }, [currentIdx, routine, voiceEnabled, isCompleted]);
 
-  // Timer countdown loop
+  // Timer countdown loop with sound and haptic pulse feedback
   useEffect(() => {
     if (!isPlaying || isCompleted) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -79,6 +105,15 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
           // Play sound and advance to next exercise or complete
           if (soundEnabled) playTick(880, 0.15, 0.25);
 
+          // Haptic feedback on movement transition
+          if (hapticsEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate([100, 50, 150]);
+            } catch (e) {
+              // Ignore if vibration unavailable
+            }
+          }
+
           if (currentIdx < routine.exercises.length - 1) {
             setCurrentIdx((c) => c + 1);
             return routine.exercises[currentIdx + 1].durationSeconds;
@@ -87,6 +122,11 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
             clearInterval(timerRef.current!);
             setIsCompleted(true);
             playGong();
+            if (hapticsEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              try {
+                navigator.vibrate([150, 80, 200, 80, 300]);
+              } catch (e) {}
+            }
             confetti({
               particleCount: 80,
               spread: 70,
@@ -96,9 +136,16 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
           }
         }
 
-        // Play tick on final 3 seconds
-        if (prev <= 4 && soundEnabled) {
-          playTick(520, 0.08, 0.12);
+        // Play tick and trigger rhythmic haptic pulse on final 3-second countdown
+        if (prev <= 4) {
+          if (soundEnabled) {
+            playTick(520, 0.08, 0.12);
+          }
+          if (pulseCountdownEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate([60]);
+            } catch (e) {}
+          }
         }
 
         return prev - 1;
@@ -108,7 +155,7 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, currentIdx, isCompleted, routine.exercises, soundEnabled]);
+  }, [isPlaying, currentIdx, isCompleted, routine.exercises, soundEnabled, hapticsEnabled, pulseCountdownEnabled]);
 
   const handleNext = () => {
     if (currentIdx < routine.exercises.length - 1) {
@@ -279,6 +326,31 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
             title={soundEnabled ? 'Chime Sounds On' : 'Chime Sounds Muted'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
+          {/* Haptic Vibration & Pulse Countdown Toggle Buttons */}
+          <button
+            onClick={togglePulseCountdown}
+            className={`p-2.5 rounded-xl border transition-all ${
+              pulseCountdownEnabled 
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' 
+                : 'bg-slate-900 border-slate-800 text-slate-500'
+            }`}
+            title={pulseCountdownEnabled ? '3s Pulse Countdown Vibrate: ON' : '3s Pulse Countdown Vibrate: OFF'}
+          >
+            <Zap className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={toggleHaptics}
+            className={`p-2.5 rounded-xl border transition-all ${
+              hapticsEnabled 
+                ? 'bg-teal-500/10 border-teal-500/40 text-teal-400' 
+                : 'bg-slate-900 border-slate-800 text-slate-500'
+            }`}
+            title={hapticsEnabled ? 'Transition Haptics: ON' : 'Transition Haptics: OFF'}
+          >
+            <Vibrate className="w-4 h-4" />
           </button>
 
           {/* Close Button */}

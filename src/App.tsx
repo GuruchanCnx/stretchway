@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, 
   Bike, 
@@ -21,7 +22,10 @@ import {
   Droplets,
   BookOpen,
   Trash2,
-  Wand2
+  Wand2,
+  Calendar,
+  Target,
+  Settings
 } from 'lucide-react';
 import { 
   VehicleType, 
@@ -50,6 +54,9 @@ import { RoadLog } from './components/RoadLog';
 import { ExerciseCard } from './components/ExerciseCard';
 import { ExerciseDetailModal } from './components/ExerciseDetailModal';
 import { SmartRoutineCreator } from './components/SmartRoutineCreator';
+import { DailyGoalModal } from './components/DailyGoalModal';
+import { UserSettingsModal } from './components/UserSettingsModal';
+import { SundaySummaryModal } from './components/SundaySummaryModal';
 import { 
   ensureAuthenticatedUser, 
   syncUserProgressToFirestore, 
@@ -96,6 +103,49 @@ export const App: React.FC = () => {
   const [isAICoachOpen, setIsAICoachOpen] = useState(false);
   const [aiCoachInitialPrompt, setAiCoachInitialPrompt] = useState<string>('');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+
+  // Daily target minutes & modals state
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(() => {
+    const saved = localStorage.getItem('stretchway_daily_goal_minutes');
+    return saved ? parseInt(saved, 10) : 15;
+  });
+  const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
+  const [isUserSettingsOpen, setIsUserSettingsOpen] = useState(false);
+  const [isSundaySummaryOpen, setIsSundaySummaryOpen] = useState(false);
+
+  // Settings for haptics & pulse countdown
+  const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('stretchway_haptics_enabled') !== 'false';
+  });
+  const [pulseCountdownEnabled, setPulseCountdownEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('stretchway_pulse_countdown') !== 'false';
+  });
+
+  const handleToggleHaptics = (val: boolean) => {
+    setHapticsEnabled(val);
+    localStorage.setItem('stretchway_haptics_enabled', String(val));
+  };
+
+  const handleTogglePulseCountdown = (val: boolean) => {
+    setPulseCountdownEnabled(val);
+    localStorage.setItem('stretchway_pulse_countdown', String(val));
+  };
+
+  const handleSaveDailyGoal = (mins: number) => {
+    setDailyGoalMinutes(mins);
+    localStorage.setItem('stretchway_daily_goal_minutes', String(mins));
+  };
+
+  // Sunday summary check
+  useEffect(() => {
+    const isSunday = new Date().getDay() === 0;
+    const lastPromptDate = localStorage.getItem('stretchway_last_sunday_summary_prompt');
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (isSunday && lastPromptDate !== todayStr) {
+      setIsSundaySummaryOpen(true);
+      localStorage.setItem('stretchway_last_sunday_summary_prompt', todayStr);
+    }
+  }, []);
 
   // Personalized Driver Assessment Profile
   const [assessmentProfile, setAssessmentProfile] = useState<UserAssessmentProfile | null>(() => {
@@ -376,6 +426,10 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         onOpenQuickBreath={() => setActiveTab('breath')}
         activeTab={activeTab}
         onSelectTab={(tab: any) => setActiveTab(tab)}
+        dailyGoalMinutes={dailyGoalMinutes}
+        todayMinutes={todayMinutes}
+        onOpenDailyGoalModal={() => setIsDailyGoalModalOpen(true)}
+        onOpenUserSettings={() => setIsUserSettingsOpen(true)}
       />
 
       {/* Hero Category Navigation Bar */}
@@ -499,9 +553,19 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
           </div>
         )}
 
-        {/* TAB 1: CURATED ROUTINES & PROTOCOLS */}
-        {activeTab === 'routines' && (
-          <div className="space-y-8">
+        {/* Tab Views with Fluid Transitions */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="w-full"
+          >
+            {/* TAB 1: CURATED ROUTINES & PROTOCOLS */}
+            {activeTab === 'routines' && (
+              <div className="space-y-8">
             
             {/* Rich Hero Wall with CTAs, Quick Pitstop launcher & Personalized Profile */}
             <HeroWall
@@ -557,11 +621,19 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRoutines.map((routine) => {
+                {filteredRoutines.map((routine, idx) => {
                   const isCustom = customRoutines.some(cr => cr.id === routine.id);
                   return (
-                    <div
+                    <motion.div
                       key={routine.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -6, scale: 1.018 }}
+                      transition={{ 
+                        duration: 0.35, 
+                        delay: Math.min(idx * 0.04, 0.3),
+                        ease: [0.25, 0.8, 0.25, 1] 
+                      }}
                       className={`p-6 rounded-3xl bg-slate-900/80 border transition-all flex flex-col justify-between hover:shadow-2xl hover:shadow-cyan-500/10 group relative overflow-hidden ${
                         isCustom 
                           ? 'border-cyan-500/60 shadow-lg shadow-cyan-500/10 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950' 
@@ -644,7 +716,7 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
                         <Play className="w-4 h-4 fill-slate-950" />
                         <span>Start Guided Session</span>
                       </button>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -775,19 +847,21 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
           </div>
         )}
 
-        {/* TAB 7: ROAD LOG & RECOVERY DASHBOARD */}
-        {activeTab === 'log' && (
-          <RoadLog
-            userProgress={userProgress}
-            onExportSummary={handleExportSummary}
-            onStartRoutine={(r) => setActiveRoutine(r)}
-            onOpenAICoach={(prompt) => {
-              if (prompt) setAiCoachInitialPrompt(prompt);
-              setIsAICoachOpen(true);
-            }}
-            currentVehicle={currentVehicle}
-          />
-        )}
+            {/* TAB 7: ROAD LOG & RECOVERY DASHBOARD */}
+            {activeTab === 'log' && (
+              <RoadLog
+                userProgress={userProgress}
+                onExportSummary={handleExportSummary}
+                onStartRoutine={(r) => setActiveRoutine(r)}
+                onOpenAICoach={(prompt) => {
+                  if (prompt) setAiCoachInitialPrompt(prompt);
+                  setIsAICoachOpen(true);
+                }}
+                currentVehicle={currentVehicle}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
 
       </main>
 
@@ -853,6 +927,38 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         onSaveAssessment={handleSaveAssessment}
         onLaunchRoutine={(r) => setActiveRoutine(r)}
         initialVehicle={currentVehicle}
+      />
+
+      {/* Daily Goal Setting Modal */}
+      <DailyGoalModal
+        isOpen={isDailyGoalModalOpen}
+        onClose={() => setIsDailyGoalModalOpen(false)}
+        currentGoalMinutes={dailyGoalMinutes}
+        todayMinutes={todayMinutes}
+        onSaveGoal={handleSaveDailyGoal}
+      />
+
+      {/* User Settings Modal (Haptics, Pulse Countdown, Veo-3 Autoplay) */}
+      <UserSettingsModal
+        isOpen={isUserSettingsOpen}
+        onClose={() => setIsUserSettingsOpen(false)}
+        hapticsEnabled={hapticsEnabled}
+        onToggleHaptics={handleToggleHaptics}
+        pulseCountdownEnabled={pulseCountdownEnabled}
+        onTogglePulseCountdown={handleTogglePulseCountdown}
+        onOpenDailyGoal={() => {
+          setIsUserSettingsOpen(false);
+          setIsDailyGoalModalOpen(true);
+        }}
+      />
+
+      {/* Automated Sunday Weekly Recovery Summary Modal */}
+      <SundaySummaryModal
+        isOpen={isSundaySummaryOpen}
+        onClose={() => setIsSundaySummaryOpen(false)}
+        userProgress={userProgress}
+        currentVehicle={currentVehicle}
+        onStartRoutine={(r) => setActiveRoutine(r)}
       />
 
       {/* Sticky Bottom Navigation Tabs */}

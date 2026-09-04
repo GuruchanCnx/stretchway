@@ -764,3 +764,6 @@ export const ERGONOMIC_TIPS: ErgonomicTip[] = [
     ]
   }
 ];
+
+export const EXERCISE_DATABASE = ALL_EXERCISES;
+
