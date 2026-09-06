@@ -57,6 +57,7 @@ import { SmartRoutineCreator } from './components/SmartRoutineCreator';
 import { DailyGoalModal } from './components/DailyGoalModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { SundaySummaryModal } from './components/SundaySummaryModal';
+import { VoiceCommandAssistant } from './components/VoiceCommandAssistant';
 import { 
   ensureAuthenticatedUser, 
   syncUserProgressToFirestore, 
@@ -72,7 +73,21 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'routines' | 'bodymap' | 'breath' | 'cockpit' | 'trip' | 'log' | 'library'>('routines');
   const [currentVehicle, setCurrentVehicle] = useState<VehicleType>('all');
   const [currentLang, setCurrentLang] = useState<SupportedLang>('en');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  
+  // Theme state with OS System Preference & manual override support
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const manualOverride = localStorage.getItem('stretchway_theme_override');
+    if (manualOverride === 'light' || manualOverride === 'dark') {
+      return manualOverride;
+    }
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+    return 'dark';
+  });
   const [accentTheme, setAccentTheme] = useState<AccentColorTheme>(() => {
     const savedAccent = localStorage.getItem('stretchway_accent_theme');
     if (savedAccent && (savedAccent in THEME_CONFIGS)) {
@@ -315,6 +330,69 @@ export const App: React.FC = () => {
     }
   }, [theme]);
 
+  // System Preference listener: automatically switches between light and dark modes based on OS settings
+  // while maintaining the manual theme toggle override
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      const manualOverride = localStorage.getItem('stretchway_theme_override');
+      // If user hasn't explicitly set a manual override, follow OS setting automatically
+      if (!manualOverride) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+    } else {
+      mediaQuery.addListener(handleSystemThemeChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleSystemThemeChange);
+      } else {
+        mediaQuery.removeListener(handleSystemThemeChange);
+      }
+    };
+  }, []);
+
+  // Manual theme toggle: saves user preference override to localStorage
+  const handleToggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('stretchway_theme_override', next);
+      return next;
+    });
+  };
+
+  // Hands-free voice trigger for Quick Pitstop
+  const handleTriggerQuickPitstop = () => {
+    const quickRoutine = CURATED_ROUTINES.find(r => r.id === 'routine-quick-5min') || CURATED_ROUTINES[0];
+    setActiveRoutine(quickRoutine);
+  };
+
+  // Equip / unequip cosmetic title & badge
+  const handleEquipFlair = (title: string, badgeId: string) => {
+    setUserProgress(prev => {
+      const isAlreadyEquipped = prev.equippedTitle === title;
+      const updated: UserProgress = {
+        ...prev,
+        equippedTitle: isAlreadyEquipped ? undefined : title,
+        equippedBadgeId: isAlreadyEquipped ? undefined : badgeId
+      };
+      localStorage.setItem('stretchway_progress', JSON.stringify(updated));
+      ensureAuthenticatedUser().then(user => {
+        if (user) {
+          syncUserProgressToFirestore(user.uid, updated);
+        }
+      });
+      return updated;
+    });
+  };
+
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
 
   const handleRoutineCompleted = (data: {
@@ -443,7 +521,7 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         currentLang={currentLang}
         onSelectLang={setCurrentLang}
         theme={theme}
-        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        onToggleTheme={handleToggleTheme}
         accentTheme={accentTheme}
         onSelectAccentTheme={setAccentTheme}
         userProgress={userProgress}
@@ -907,6 +985,7 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
                   setIsAICoachOpen(true);
                 }}
                 currentVehicle={currentVehicle}
+                onEquipFlair={handleEquipFlair}
               />
             )}
           </motion.div>
@@ -1008,6 +1087,14 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         userProgress={userProgress}
         currentVehicle={currentVehicle}
         onStartRoutine={(r) => setActiveRoutine(r)}
+      />
+
+      {/* Hands-Free Voice Copilot for Drivers (Web Speech API) */}
+      <VoiceCommandAssistant
+        onNavigate={(tab) => setActiveTab(tab)}
+        onTriggerQuickPitstop={handleTriggerQuickPitstop}
+        onToggleTheme={handleToggleTheme}
+        currentTab={activeTab}
       />
 
       {/* Sticky Bottom Navigation Tabs */}

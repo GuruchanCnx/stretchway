@@ -224,6 +224,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{userProgress.currentStreakDays}d</span>
             </div>
 
+            {/* Cosmetic Profile Title Badge if equipped */}
+            {userProgress.equippedTitle && (
+              <button
+                onClick={() => onSelectTab('log')}
+                className={`hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl border text-xs font-black transition-all ${
+                  theme === 'light'
+                    ? 'bg-cyan-50 text-cyan-800 border-cyan-300 hover:bg-cyan-100'
+                    : 'bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 text-cyan-200 border-cyan-400/40 hover:border-cyan-300'
+                }`}
+                title={`Equipped Profile Title: "${userProgress.equippedTitle}" — View Badges in Recovery Log`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="font-mono text-[11px] truncate max-w-[140px]">{userProgress.equippedTitle}</span>
+              </button>
+            )}
+
             {/* Quick Breath Trigger */}
             <button
               onClick={onOpenQuickBreath}

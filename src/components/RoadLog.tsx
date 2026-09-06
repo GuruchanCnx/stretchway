@@ -35,6 +35,8 @@ import { UserProgress, Routine, VehicleType, SorenessAssessmentResult } from '..
 import { CURATED_ROUTINES } from '../data/exercises';
 import { ConsistencyHeatmap } from './ConsistencyHeatmap';
 import { SorenessHeatmap } from './SorenessHeatmap';
+import { AchievementBadgesView } from './AchievementBadgesView';
+import { RoutineEfficiencyWidget } from './RoutineEfficiencyWidget';
 
 interface RoadLogProps {
   userProgress: UserProgress;
@@ -42,6 +44,7 @@ interface RoadLogProps {
   onStartRoutine?: (routine: Routine) => void;
   onOpenAICoach?: (initialPrompt?: string) => void;
   currentVehicle?: VehicleType;
+  onEquipFlair?: (title: string, badgeId: string) => void;
 }
 
 export const RoadLog: React.FC<RoadLogProps> = ({
@@ -49,10 +52,12 @@ export const RoadLog: React.FC<RoadLogProps> = ({
   onExportSummary,
   onStartRoutine,
   onOpenAICoach,
-  currentVehicle = 'car'
+  currentVehicle = 'car',
+  onEquipFlair
 }) => {
   const streak = userProgress.currentStreakDays;
   const [showMilestoneBanner, setShowMilestoneBanner] = useState(false);
+  const [activeLogTab, setActiveLogTab] = useState<'analytics' | 'achievements' | 'efficiency'>('analytics');
 
   // Soreness Assessment state
   const [selectedTensionAreas, setSelectedTensionAreas] = useState<string[]>([]);
@@ -331,6 +336,64 @@ export const RoadLog: React.FC<RoadLogProps> = ({
           <span>Export Health Report</span>
         </button>
       </div>
+
+      {/* Sub Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-4 mb-6 overflow-x-auto">
+        <button
+          onClick={() => setActiveLogTab('analytics')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeLogTab === 'analytics'
+              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+              : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Recovery Analytics</span>
+        </button>
+
+        <button
+          onClick={() => setActiveLogTab('achievements')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeLogTab === 'achievements'
+              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+              : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+          }`}
+        >
+          <Trophy className="w-4 h-4" />
+          <span>Achievements & Badges</span>
+          {userProgress.unlockedBadgeIds && userProgress.unlockedBadgeIds.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+              {userProgress.unlockedBadgeIds.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveLogTab('efficiency')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeLogTab === 'efficiency'
+              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+              : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>D3 Routine Efficiency</span>
+        </button>
+      </div>
+
+      {activeLogTab === 'achievements' && (
+        <AchievementBadgesView 
+          userProgress={userProgress} 
+          onEquipFlair={onEquipFlair} 
+        />
+      )}
+
+      {activeLogTab === 'efficiency' && (
+        <RoutineEfficiencyWidget userProgress={userProgress} />
+      )}
+
+      {activeLogTab === 'analytics' && (
+        <div className="space-y-6">
 
       {/* Milestone celebration alert banner if streak milestone reached */}
       <AnimatePresence>
@@ -869,6 +932,9 @@ export const RoadLog: React.FC<RoadLogProps> = ({
         </div>
       </div>
 
+      {/* D3 Routine Efficiency Widget */}
+      <RoutineEfficiencyWidget userProgress={userProgress} />
+
       {/* Recent History Table */}
       <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800">
         <h3 className="text-base font-extrabold text-white mb-4 flex items-center gap-2">
@@ -912,6 +978,9 @@ export const RoadLog: React.FC<RoadLogProps> = ({
           </div>
         )}
       </div>
+
+    </div>
+  )}
 
     </div>
   );

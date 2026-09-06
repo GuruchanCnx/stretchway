@@ -111,6 +111,25 @@ export interface ErgonomicTip {
   correctionSteps: string[];
 }
 
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  description: string;
+  category: 'streak' | 'time' | 'pitstop' | 'zen';
+  tier: 'bronze' | 'silver' | 'gold' | 'diamond';
+  icon: string;
+  metricType: 'streak' | 'totalMinutes' | 'routines' | 'breath';
+  targetValue: number;
+  currentValue: number;
+  unlocked: boolean;
+  unlockedAt?: string;
+  cosmeticFlair: {
+    avatarRing: string;
+    profileTitle: string;
+    tagClass: string;
+  };
+}
+
 export interface UserProgress {
   totalMinutesStretched: number;
   routinesCompleted: number;
@@ -126,6 +145,9 @@ export interface UserProgress {
     feelingAfter: number; // 1-5
   }[];
   favoriteExerciseIds: string[];
+  unlockedBadgeIds?: string[];
+  equippedTitle?: string;
+  equippedBadgeId?: string;
 }
 
 export interface SorenessAssessmentResult {
