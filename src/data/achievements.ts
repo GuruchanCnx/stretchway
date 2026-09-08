@@ -47,6 +47,21 @@ export const BADGE_DEFINITIONS: Omit<AchievementBadge, 'currentValue' | 'unlocke
     }
   },
   {
+    id: 'streak-10',
+    title: '10-Day Streak',
+    description: 'Maintain an unbroken 10-day consecutive road mobility streak across highway travels.',
+    category: 'streak',
+    tier: 'gold',
+    icon: 'Flame',
+    metricType: 'streak',
+    targetValue: 10,
+    cosmeticFlair: {
+      avatarRing: 'ring-3 ring-amber-400 shadow-amber-500/50 shadow-lg',
+      profileTitle: 'Decade Cruiser',
+      tagClass: 'bg-amber-950/90 text-amber-300 border-amber-400/60'
+    }
+  },
+  {
     id: 'streak-14',
     title: 'Century Helmsman',
     description: 'Maintain a 14-day consecutive streak of spinal decompression.',

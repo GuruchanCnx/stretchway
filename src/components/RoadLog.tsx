@@ -35,7 +35,8 @@ import { UserProgress, Routine, VehicleType, SorenessAssessmentResult } from '..
 import { CURATED_ROUTINES } from '../data/exercises';
 import { ConsistencyHeatmap } from './ConsistencyHeatmap';
 import { SorenessHeatmap } from './SorenessHeatmap';
-import { AchievementBadgesView } from './AchievementBadgesView';
+import { Badges } from './Badges';
+import { WeeklyConsistencyChart } from './WeeklyConsistencyChart';
 import { RoutineEfficiencyWidget } from './RoutineEfficiencyWidget';
 
 interface RoadLogProps {
@@ -382,7 +383,7 @@ export const RoadLog: React.FC<RoadLogProps> = ({
       </div>
 
       {activeLogTab === 'achievements' && (
-        <AchievementBadgesView 
+        <Badges 
           userProgress={userProgress} 
           onEquipFlair={onEquipFlair} 
         />
@@ -829,108 +830,8 @@ export const RoadLog: React.FC<RoadLogProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* 7-Day Stretch Time Line Chart */}
-
-      <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-base font-extrabold text-white">
-                Daily Minutes Stretched (Past 7 Days)
-              </h3>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Visualizing daily decompression duration to sustain spinal mobility
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-center gap-1.5">
-              <span className="text-slate-400">7-Day Total:</span>
-              <span className="font-bold text-cyan-400 font-mono">{total7DayMinutes}m</span>
-            </div>
-            <div className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-center gap-1.5">
-              <span className="text-slate-400">Daily Avg:</span>
-              <span className="font-bold text-emerald-400 font-mono">{avgDailyMinutes}m</span>
-            </div>
-            {peakDay && peakDay.minutes > 0 && (
-              <div className="px-3 py-1 rounded-lg bg-cyan-950/60 border border-cyan-800/60 text-xs text-cyan-300 flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-cyan-400" />
-                <span className="text-cyan-400/80">Peak:</span>
-                <span className="font-bold">{peakDay.day} ({peakDay.minutes}m)</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recharts Line Chart */}
-        <div className="w-full h-64 sm:h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={last7DaysData}
-              margin={{ top: 12, right: 16, left: -16, bottom: 4 }}
-            >
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#1e293b" 
-                vertical={false} 
-              />
-              <XAxis 
-                dataKey="day" 
-                stroke="#64748b" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={{ stroke: '#334155' }}
-              />
-              <YAxis 
-                stroke="#64748b" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={false}
-                unit="m"
-                allowDecimals={false}
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const dataPoint = payload[0].payload;
-                    return (
-                      <div className="bg-slate-900/95 border border-slate-700/90 rounded-xl p-3 shadow-xl backdrop-blur-md">
-                        <div className="text-xs font-semibold text-slate-300 mb-1">
-                          {dataPoint.fullDate} {dataPoint.isToday ? '(Today)' : ''}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-                          <span className="text-xs text-slate-400">Minutes Stretched:</span>
-                          <span className="text-xs font-mono font-bold text-cyan-300">
-                            {payload[0].value} mins
-                          </span>
-                        </div>
-                        {dataPoint.sessions > 0 && (
-                          <div className="text-[11px] text-emerald-400 mt-1">
-                            {dataPoint.sessions} session{dataPoint.sessions > 1 ? 's' : ''} logged
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="totalMinutesStretched"
-                name="Total Minutes Stretched"
-                stroke="#06b6d4"
-                strokeWidth={3}
-                dot={{ r: 4, fill: '#06b6d4', stroke: '#0f172a', strokeWidth: 2 }}
-                activeDot={{ r: 7, fill: '#22d3ee', stroke: '#ffffff', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      {/* Recharts Weekly Consistency & Total Minutes Line Chart */}
+      <WeeklyConsistencyChart userProgress={userProgress} />
 
       {/* D3 Routine Efficiency Widget */}
       <RoutineEfficiencyWidget userProgress={userProgress} />

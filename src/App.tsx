@@ -58,6 +58,7 @@ import { DailyGoalModal } from './components/DailyGoalModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { SundaySummaryModal } from './components/SundaySummaryModal';
 import { VoiceCommandAssistant } from './components/VoiceCommandAssistant';
+import { StretchNotificationSystem } from './components/StretchNotificationSystem';
 import { 
   ensureAuthenticatedUser, 
   syncUserProgressToFirestore, 
@@ -1095,6 +1096,12 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
         onTriggerQuickPitstop={handleTriggerQuickPitstop}
         onToggleTheme={handleToggleTheme}
         currentTab={activeTab}
+      />
+
+      {/* Browser Stretch Notification & Highway Timer System */}
+      <StretchNotificationSystem
+        onStartQuickStretch={handleTriggerQuickPitstop}
+        onOpenTripPlanner={() => setActiveTab('trip')}
       />
 
       {/* Sticky Bottom Navigation Tabs */}
