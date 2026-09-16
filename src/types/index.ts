@@ -130,12 +130,50 @@ export interface AchievementBadge {
   };
 }
 
+export type CoachId = 'olympic' | 'yoga' | 'physio' | 'ergonomic';
+
+export interface CoachProfile {
+  id: CoachId;
+  name: string;
+  title: string;
+  tagline: string;
+  avatarEmoji: string;
+  themeColor: string;
+  accentGradient: string;
+  voiceStyle: string;
+  specialty: string;
+  characterStyle: 'athletic' | 'zen' | 'clinical' | 'road-pro';
+  introMessage: string;
+  formCueTone: string;
+  celebrationQuote: string;
+}
+
+export type AvatarFlairSlot = 'headwear' | 'apparel' | 'gear' | 'wrist' | 'aura';
+
+export interface AvatarFlairItem {
+  id: string;
+  name: string;
+  slot: AvatarFlairSlot;
+  description: string;
+  icon: string;
+  milestoneDescription: string;
+  unlockedByDefault?: boolean;
+  requiredMetric: 'routines' | 'streak' | 'totalMinutes' | 'breath';
+  requiredValue: number;
+  visualPreview: {
+    color: string;
+    glow: string;
+    badgeLabel: string;
+  };
+}
+
 export interface UserProgress {
   totalMinutesStretched: number;
   routinesCompleted: number;
   breathSessionsCompleted: number;
   currentStreakDays: number;
   lastSessionDate: string;
+  lastActiveDate?: string;
   completedHistory: {
     id: string;
     title: string;
@@ -148,6 +186,8 @@ export interface UserProgress {
   unlockedBadgeIds?: string[];
   equippedTitle?: string;
   equippedBadgeId?: string;
+  selectedCoachId?: CoachId;
+  equippedFlairIds?: string[];
 }
 
 export interface SorenessAssessmentResult {

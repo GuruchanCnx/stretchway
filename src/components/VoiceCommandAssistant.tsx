@@ -64,7 +64,7 @@ export const VoiceCommandAssistant: React.FC<VoiceCommandAssistantProps> = ({
   const [micError, setMicError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const dismissTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Safe Text-to-Speech audio feedback
   const speakFeedback = useCallback((text: string) => {

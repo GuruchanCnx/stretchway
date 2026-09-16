@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Routine, VehicleType, Exercise } from '../types';
+import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
 
 interface SmartRoutineCreatorProps {
   onRoutineCreated: (routine: Routine, autoStart?: boolean) => void;
@@ -54,6 +55,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>('');
   const [generatedRoutine, setGeneratedRoutine] = useState<Routine | null>(null);
+  const [selectedPreviewExercise, setSelectedPreviewExercise] = useState<Exercise | null>(null);
   const [hasAppended, setHasAppended] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -148,6 +150,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
       };
 
       setGeneratedRoutine(enrichedRoutine);
+      setSelectedPreviewExercise(enrichedRoutine.exercises?.[0] || null);
       confetti({
         particleCount: 40,
         spread: 60,
@@ -472,42 +475,78 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 {generatedRoutine.coachRationale}
               </div>
 
+              {/* 3D Character Movement Stage for Synthesized Drill */}
+              {selectedPreviewExercise && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wider text-cyan-400 font-mono">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>3D Animated Movement Demonstration:</span>
+                    </span>
+                    <span className="text-slate-400 font-normal normal-case">
+                      {selectedPreviewExercise.name}
+                    </span>
+                  </div>
+                  <div className="h-56 sm:h-64 rounded-2xl overflow-hidden border border-slate-800 shadow-inner bg-slate-950">
+                    <ExerciseCharacterVisual
+                      exercise={selectedPreviewExercise}
+                      variant="card"
+                      isPlaying={true}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Exercises List Breakdown */}
               <div className="space-y-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                  Prescribed Exercise Sequence ({generatedRoutine.exercises.length} Drills)
+                  Prescribed Exercise Sequence ({generatedRoutine.exercises.length} Drills - Click to View 3D Character)
                 </span>
                 
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {generatedRoutine.exercises.map((ex, idx) => (
-                    <div
-                      key={ex.id || idx}
-                      className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-start justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-cyan-950 border border-cyan-800 text-cyan-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <h4 className="font-bold text-white leading-tight">{ex.name}</h4>
-                          <div className="flex flex-wrap gap-1.5 mt-1 text-[10px] text-slate-400">
-                            <span className="text-cyan-300 font-mono">⏱️ {ex.durationSeconds}s</span>
-                            <span>• {ex.reps}</span>
-                            <span>• {ex.targetMuscles.slice(0, 2).join(', ')}</span>
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {generatedRoutine.exercises.map((ex, idx) => {
+                    const isSelected = selectedPreviewExercise?.id === ex.id;
+                    return (
+                      <div
+                        key={ex.id || idx}
+                        onClick={() => setSelectedPreviewExercise(ex)}
+                        className={`p-3 rounded-xl border flex items-start justify-between gap-3 text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 border-cyan-500/80 shadow-md shadow-cyan-500/10'
+                            : 'bg-slate-900/70 hover:bg-slate-900 border-slate-800/80'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                            isSelected
+                              ? 'bg-cyan-500 text-slate-950 font-black'
+                              : 'bg-cyan-950 border border-cyan-800 text-cyan-400'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <h4 className={`font-bold leading-tight ${isSelected ? 'text-cyan-300' : 'text-white'}`}>
+                              {ex.name}
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5 mt-1 text-[10px] text-slate-400">
+                              <span className="text-cyan-300 font-mono">⏱️ {ex.durationSeconds}s</span>
+                              <span>• {ex.reps}</span>
+                              <span>• {ex.targetMuscles.slice(0, 2).join(', ')}</span>
+                            </div>
+                            {ex.formCues && (
+                              <p className="text-[11px] text-slate-400 mt-1 italic line-clamp-1">
+                                💡 {ex.formCues}
+                              </p>
+                            )}
                           </div>
-                          {ex.formCues && (
-                            <p className="text-[11px] text-slate-400 mt-1 italic line-clamp-1">
-                              💡 {ex.formCues}
-                            </p>
-                          )}
                         </div>
-                      </div>
 
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-400 shrink-0">
-                        {ex.location}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-400 shrink-0">
+                          {ex.location}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Play, 
   Sparkles, 
@@ -16,10 +16,13 @@ import {
   Clock, 
   Video,
   UserCheck,
-  RotateCcw
+  RotateCcw,
+  Layers
 } from 'lucide-react';
-import { Routine, VehicleType, UserProgress, UserAssessmentProfile } from '../types';
+import { Routine, VehicleType, UserProgress, UserAssessmentProfile, Exercise } from '../types';
 import { THEME_CONFIGS } from '../data/themes';
+import { ALL_EXERCISES } from '../data/exercises';
+import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
 
 interface HeroWallProps {
   currentVehicle: VehicleType;
@@ -51,6 +54,16 @@ export const HeroWall: React.FC<HeroWallProps> = ({
   // Find quick instant routine
   const quickRoutine = curatedRoutines.find(r => r.id === 'car-quick-pitstop' || r.durationMinutes <= 5) || curatedRoutines[0];
   const commuterRoutine = curatedRoutines.find(r => r.id === 'car-in-seat-commuter') || curatedRoutines[0];
+
+  // Curated movement demo exercises for the live 3D previewer in Hero
+  const demoExercises: Exercise[] = [
+    ALL_EXERCISES.find(e => e.id === 'car-neck-rolls') || ALL_EXERCISES[0],
+    ALL_EXERCISES.find(e => e.id === 'car-hamstring-slide') || ALL_EXERCISES[1],
+    ALL_EXERCISES.find(e => e.id === 'car-chest-opener') || ALL_EXERCISES[2],
+    ALL_EXERCISES.find(e => e.id === 'car-wrist-rotations') || ALL_EXERCISES[3]
+  ];
+  const [selectedDemoIndex, setSelectedDemoIndex] = useState(0);
+  const activeDemoExercise = demoExercises[selectedDemoIndex];
 
   const vehiclePills: { id: VehicleType; label: string; icon: React.ReactNode }[] = [
     { id: 'all', label: 'All Modes', icon: <Activity className="w-3.5 h-3.5" /> },
@@ -185,6 +198,124 @@ export const HeroWall: React.FC<HeroWallProps> = ({
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span>Ask Coach Lyra</span>
           </button>
+        </div>
+
+        {/* Live 3D Kinetic Biomechanics Demonstrator Stage */}
+        <div className="rounded-3xl bg-slate-950/80 border border-cyan-500/30 p-4 sm:p-6 shadow-2xl backdrop-blur-md">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800/80">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                <span className="text-xs font-black uppercase tracking-wider text-cyan-400 font-mono">
+                  Live 3D Kinetic Biomechanics Engine
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 border border-cyan-800/60 text-cyan-300">
+                  Interactive 360°
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white mt-1">
+                Real-Time 3D Movement Demonstrations
+              </h3>
+              <p className="text-xs text-slate-400">
+                Click any driver stretch below to preview anatomical kinematics, rotate 360°, and inspect joint mechanics.
+              </p>
+            </div>
+
+            {/* Drill Switcher Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-900 border border-slate-800">
+              {demoExercises.map((ex, idx) => {
+                const isActive = selectedDemoIndex === idx;
+                return (
+                  <button
+                    key={ex.id}
+                    onClick={() => setSelectedDemoIndex(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <Activity className="w-3 h-3" />
+                    <span>{ex.name.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* 3D Character Canvas Stage */}
+            <div className="lg:col-span-7 h-72 sm:h-80 rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950 shadow-inner relative">
+              <ExerciseCharacterVisual
+                exercise={activeDemoExercise}
+                variant="card"
+                isPlaying={true}
+              />
+            </div>
+
+            {/* Exercise Details & Quick Launcher */}
+            <div className="lg:col-span-5 space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase bg-cyan-950 text-cyan-400 border border-cyan-800/60">
+                    {activeDemoExercise.location}
+                  </span>
+                  <span className="text-xs font-mono text-slate-400">
+                    ⏱️ {activeDemoExercise.durationSeconds}s • {activeDemoExercise.intensity}
+                  </span>
+                </div>
+                <h4 className="text-lg font-black text-white">
+                  {activeDemoExercise.name}
+                </h4>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  {activeDemoExercise.biomechanicsRationale}
+                </p>
+              </div>
+
+              {/* Form Cues */}
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+                <div className="text-[10px] uppercase font-mono text-cyan-400 font-bold mb-1">
+                  Coach Lyra's Alignment Cue:
+                </div>
+                <div className="text-slate-200">
+                  {activeDemoExercise.formCues}
+                </div>
+              </div>
+
+              {/* Target Muscles */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-mono text-slate-400 uppercase mr-1">Targets:</span>
+                {activeDemoExercise.targetMuscles.map(m => (
+                  <span key={m} className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-900 border border-slate-800 text-cyan-300">
+                    {m}
+                  </span>
+                ))}
+              </div>
+
+              {/* Action: Launch this drill as single routine */}
+              <button
+                onClick={() => {
+                  const singleRoutine: Routine = {
+                    id: `demo-${activeDemoExercise.id}`,
+                    title: activeDemoExercise.name,
+                    subtitle: `${activeDemoExercise.location} drill for ${activeDemoExercise.targetMuscles.join(', ')}`,
+                    category: activeDemoExercise.category,
+                    vehicle: 'all',
+                    durationMinutes: Math.ceil(activeDemoExercise.durationSeconds / 60),
+                    intensity: activeDemoExercise.intensity,
+                    targetAreas: activeDemoExercise.targetMuscles,
+                    coachRationale: activeDemoExercise.biomechanicsRationale,
+                    exercises: [activeDemoExercise]
+                  };
+                  onStartRoutine(singleRoutine);
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Start Interactive Drill Guided Session</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Personalized Tailored Prescription Banner (If Assessment Completed) */}

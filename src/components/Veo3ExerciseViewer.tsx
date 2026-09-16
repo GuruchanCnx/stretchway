@@ -37,7 +37,7 @@ export const Veo3ExerciseViewer: React.FC<Veo3ExerciseViewerProps> = ({
   autoPlay = true,
   onBack
 }) => {
-  const [viewMode, setViewMode] = useState<'veo3' | 'kinetic'>('veo3');
+  const [viewMode, setViewMode] = useState<'veo3' | 'kinetic'>('kinetic');
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [showPromptDetails, setShowPromptDetails] = useState(false);
   const [showAnatomyHUD, setShowAnatomyHUD] = useState(true);
@@ -49,7 +49,7 @@ export const Veo3ExerciseViewer: React.FC<Veo3ExerciseViewerProps> = ({
 
   // Video playback scrubber simulation & smooth progress loop
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (isPlaying) {
       interval = setInterval(() => {
         setProgress(p => {
@@ -109,29 +109,29 @@ export const Veo3ExerciseViewer: React.FC<Veo3ExerciseViewerProps> = ({
           )}
         </div>
 
-        {/* View Switcher: Photo-Realistic Veo-3 Cinema Video vs Kinetic Rig */}
+        {/* View Switcher: 3D Kinetic Character vs Veo-3 4K */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-800 shadow-lg">
+          <button
+            onClick={() => setViewMode('kinetic')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 ${
+              viewMode === 'kinetic'
+                ? 'bg-cyan-500 text-slate-950 font-black shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Activity className="w-3 h-3" />
+            <span>3D Character</span>
+          </button>
           <button
             onClick={() => setViewMode('veo3')}
             className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 ${
               viewMode === 'veo3'
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-sm'
+                ? 'bg-slate-700 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <Video className="w-3 h-3" />
             <span>Veo-3 4K</span>
-          </button>
-          <button
-            onClick={() => setViewMode('kinetic')}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all flex items-center gap-1 ${
-              viewMode === 'kinetic'
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Activity className="w-3 h-3" />
-            <span>Kinetic Rig</span>
           </button>
         </div>
       </div>

@@ -61,7 +61,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
               {exercise.category}
             </span>
 
-            {/* Toggle between Kinetic Rig & Veo-3 4K Demo */}
+            {/* Toggle between 3D Character Animation & Video Demo */}
             <div 
               onClick={(e) => e.stopPropagation()}
               className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-950 border border-slate-800"
@@ -71,34 +71,36 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 onClick={() => setViewMode('kinetic')}
                 className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all flex items-center gap-1 ${
                   viewMode === 'kinetic'
-                    ? 'bg-slate-800 text-white'
+                    ? 'bg-cyan-500 text-slate-950 font-black'
                     : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 <Activity className="w-2.5 h-2.5" />
-                <span>Rig</span>
+                <span>3D Character</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('veo3')}
                 className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all flex items-center gap-1 ${
                   viewMode === 'veo3'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-black'
+                    ? 'bg-slate-700 text-white font-bold'
                     : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 <Video className="w-2.5 h-2.5" />
-                <span>Veo-3</span>
+                <span>Video</span>
               </button>
             </div>
           </div>
 
           {viewMode === 'kinetic' ? (
-            <ExerciseCharacterVisual 
-              exercise={exercise} 
-              variant="mini" 
-              interactive={false}
-            />
+            <div className="w-full h-44 rounded-xl overflow-hidden relative border border-slate-800/80 bg-slate-950">
+              <ExerciseCharacterVisual 
+                exercise={exercise} 
+                variant="mini" 
+                interactive={false}
+              />
+            </div>
           ) : (
             <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-800/80 relative group/video">
               <Veo3ExerciseViewer

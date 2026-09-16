@@ -19,12 +19,18 @@ import {
   Flame,
   ArrowLeft,
   Vibrate,
-  Zap
+  Zap,
+  Camera,
+  Award
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Routine, Exercise } from '../types';
+import { Routine, Exercise, CoachId } from '../types';
 import { playTick, playGong, speakCoachCue, stopVoiceCoach } from '../utils/audio';
 import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
+import { MotionCameraFeedbackOverlay } from './MotionCameraFeedbackOverlay';
+import { getCoach } from '../data/coaches';
+import { AnimatedCharacterRig } from './AnimatedCharacterRig';
 
 interface InteractivePlayerProps {
   routine: Routine;
@@ -48,6 +54,10 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isCameraCoachOpen, setIsCameraCoachOpen] = useState(false);
+  const [currentFormScore, setCurrentFormScore] = useState<number>(92);
+  const [liveCue, setLiveCue] = useState<string>('Great Form! Keep alignment centered');
+  
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => {
     return localStorage.getItem('stretchway_haptics') !== 'false';
   });
@@ -59,8 +69,11 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   const [feelingAfter, setFeelingAfter] = useState(5);
   const [stepChecked, setStepChecked] = useState<Record<number, boolean>>({});
 
+  const selectedCoachId = (typeof window !== 'undefined' ? (localStorage.getItem('stretchway_selected_coach') as CoachId) || 'olympic' : 'olympic');
+  const activeCoach = getCoach(selectedCoachId);
+
   const currentExercise: Exercise = routine.exercises[currentIdx] || routine.exercises[0];
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const togglePulseCountdown = () => {
     const next = !pulseCountdownEnabled;
@@ -197,24 +210,56 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
 
   if (isCompleted) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
-        <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fade-in overflow-y-auto">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden my-6"
+        >
           {/* Decorative glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-400 p-0.5 mx-auto mb-4 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-cyan-400" />
+          {/* Celebratory Animated Character Rig Victory Badge */}
+          <div className="relative mx-auto mb-4 w-32 h-32 rounded-2xl bg-gradient-to-tr from-cyan-950 to-slate-950 border border-cyan-500/40 p-1 flex items-center justify-center shadow-xl shadow-cyan-500/20 overflow-hidden">
+            <AnimatedCharacterRig
+              exercise={currentExercise}
+              coachId={selectedCoachId}
+              variant="mini"
+              isPlaying={true}
+              showBiomechanicsHUD={false}
+            />
+            <div className="absolute -bottom-1 inset-x-0 py-0.5 bg-cyan-500 text-slate-950 font-black text-[9px] uppercase tracking-wider">
+              Biomechanics Restored
             </div>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs mb-2">
+            <Award className="w-3.5 h-3.5" />
+            <span>+1 Recovery Milestone Achieved</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-1">
             Recovery Complete!
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
-            You successfully completed the <span className="text-cyan-400 font-semibold">{routine.title}</span>. Your spine, joints, and nervous system are reset.
+          <p className="text-slate-400 text-sm mb-4">
+            You successfully completed the <span className="text-cyan-400 font-semibold">{routine.title}</span>.
           </p>
+
+          {/* Coach Celebration Statement */}
+          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-left mb-5 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
+              {activeCoach.avatarEmoji}
+            </div>
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                {activeCoach.title} ({activeCoach.name})
+              </div>
+              <p className="text-xs text-slate-200 mt-0.5 italic leading-relaxed">
+                "{activeCoach.celebrationQuote}"
+              </p>
+            </div>
+          </div>
 
           {/* Quick Relief Rating */}
           <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 mb-6 text-left">
@@ -261,10 +306,10 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
               onClick={handleFinishSession}
               className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-extrabold text-sm shadow-xl shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              Save to Road Log & Continue
+              Save to Recovery Log & Continue
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -299,6 +344,23 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Camera Motion Detection Toggle */}
+          <button
+            onClick={() => setIsCameraCoachOpen(!isCameraCoachOpen)}
+            className={`px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 text-xs font-bold ${
+              isCameraCoachOpen
+                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/30'
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title={isCameraCoachOpen ? 'Close Camera Feedback Overlay' : 'Open Camera Form Vision Feedback'}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Camera Coach</span>
+            {isCameraCoachOpen && (
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping ml-0.5" />
+            )}
+          </button>
+
           {/* Voice Coach Toggle */}
           <button
             onClick={() => {
@@ -373,6 +435,24 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
           className="bg-gradient-to-r from-cyan-500 via-sky-400 to-teal-400 h-full transition-all duration-500" 
           style={{ width: `${progressPercent}%` }}
         />
+      </div>
+
+      {/* Live Form Guidance Banner */}
+      <div className="bg-slate-900/50 border-b border-slate-800/60 px-4 py-2 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-slate-300 font-medium">
+            {liveCue}
+          </span>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-slate-400 text-[11px]">
+          <span>Lead Coach: <strong className="text-amber-400">{activeCoach.title}</strong></span>
+          <span className="text-slate-600">•</span>
+          <span>Form Accuracy: <strong className="text-cyan-400 font-mono">{currentFormScore}%</strong></span>
+        </div>
       </div>
 
       {/* Main Player Body */}
@@ -579,6 +659,14 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
         </div>
 
       </div>
+
+      {/* Real-time Camera Motion Feedback Overlay */}
+      <MotionCameraFeedbackOverlay
+        exercise={currentExercise}
+        isOpen={isCameraCoachOpen}
+        onClose={() => setIsCameraCoachOpen(false)}
+        onFormScoreUpdate={(score) => setCurrentFormScore(score)}
+      />
 
     </div>
   );

@@ -38,6 +38,8 @@ import { SorenessHeatmap } from './SorenessHeatmap';
 import { Badges } from './Badges';
 import { WeeklyConsistencyChart } from './WeeklyConsistencyChart';
 import { RoutineEfficiencyWidget } from './RoutineEfficiencyWidget';
+import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
+import { AvatarFlairLocker } from './AvatarFlairLocker';
 
 interface RoadLogProps {
   userProgress: UserProgress;
@@ -58,7 +60,7 @@ export const RoadLog: React.FC<RoadLogProps> = ({
 }) => {
   const streak = userProgress.currentStreakDays;
   const [showMilestoneBanner, setShowMilestoneBanner] = useState(false);
-  const [activeLogTab, setActiveLogTab] = useState<'analytics' | 'achievements' | 'efficiency'>('analytics');
+  const [activeLogTab, setActiveLogTab] = useState<'analytics' | 'achievements' | 'flair' | 'efficiency'>('analytics');
 
   // Soreness Assessment state
   const [selectedTensionAreas, setSelectedTensionAreas] = useState<string[]>([]);
@@ -244,7 +246,7 @@ export const RoadLog: React.FC<RoadLogProps> = ({
 
   // Compute daily total minutes stretched for the past 7 days
   const last7DaysData = useMemo(() => {
-    const data: { day: string; fullDate: string; minutes: number; sessions: number; isToday: boolean }[] = [];
+    const data: { day: string; fullDate: string; minutes: number; totalMinutesStretched: number; sessions: number; isToday: boolean }[] = [];
     const today = new Date();
 
     for (let i = 6; i >= 0; i--) {
@@ -370,6 +372,18 @@ export const RoadLog: React.FC<RoadLogProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveLogTab('flair')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeLogTab === 'flair'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span>Avatar Flair Locker</span>
+        </button>
+
+        <button
           onClick={() => setActiveLogTab('efficiency')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
             activeLogTab === 'efficiency'
@@ -386,6 +400,15 @@ export const RoadLog: React.FC<RoadLogProps> = ({
         <Badges 
           userProgress={userProgress} 
           onEquipFlair={onEquipFlair} 
+        />
+      )}
+
+      {activeLogTab === 'flair' && (
+        <AvatarFlairLocker
+          userProgress={userProgress}
+          onEquipFlair={(id) => {
+            if (onEquipFlair) onEquipFlair('Avatar Accessory', id);
+          }}
         />
       )}
 
@@ -772,6 +795,33 @@ export const RoadLog: React.FC<RoadLogProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* 3D Character Kinetic Demonstration for Prescribed Drill */}
+              {(() => {
+                const matched = CURATED_ROUTINES.find(r => r.id === assessmentResult.suggestedRoutineId) || CURATED_ROUTINES[0];
+                const leadExercise = matched?.exercises?.[0];
+                if (!leadExercise) return null;
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-extrabold uppercase text-cyan-400 flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>3D Kinetic Movement • {leadExercise.name}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ⏱️ {leadExercise.durationSeconds}s • {leadExercise.location}
+                      </span>
+                    </div>
+                    <div className="h-52 sm:h-60 rounded-xl overflow-hidden border border-slate-800 shadow-inner bg-slate-950">
+                      <ExerciseCharacterVisual
+                        exercise={leadExercise}
+                        variant="card"
+                        isPlaying={true}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Anatomical Targets & Breathing Prescription */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">

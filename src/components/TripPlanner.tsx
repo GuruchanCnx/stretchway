@@ -63,6 +63,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
   const [agenticDiagnostics, setAgenticDiagnostics] = useState<AgenticDiagnostics | null>(null);
   const [agenticError, setAgenticError] = useState<string | null>(null);
   const [selectedPreviewExercise, setSelectedPreviewExercise] = useState<Exercise | null>(null);
+  const [expandedPitstopId, setExpandedPitstopId] = useState<string | null>(null);
 
   // Popular quick route presets
   const popularPresets = [
@@ -488,7 +489,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
                     {agenticRoutine.title}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-                    {agenticRoutine.description}
+                    {agenticRoutine.subtitle || (agenticRoutine as any).description}
                   </p>
                 </div>
 
@@ -613,7 +614,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
                 </p>
 
                 {/* Suggested Routine Mini-banner */}
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
+                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">
                       Preset Protocol:
@@ -623,14 +624,50 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => onStartRoutine(stop.suggestedRoutine)}
-                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-slate-950" />
-                    <span>Launch Protocol</span>
-                  </button>
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPitstopId(expandedPitstopId === stop.id ? null : stop.id)}
+                      className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{expandedPitstopId === stop.id ? 'Hide 3D Preview' : 'Preview 3D Character'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => onStartRoutine(stop.suggestedRoutine)}
+                      className="py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-slate-950" />
+                      <span>Launch Protocol</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Expanded 3D Character Showcase for Pitstop Milestones */}
+                {expandedPitstopId === stop.id && (
+                  <div className="mt-3 p-4 rounded-xl bg-slate-900/90 border border-cyan-500/40 space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono uppercase text-cyan-400 font-bold flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>3D Kinetic Preview • {stop.suggestedRoutine.exercises[0]?.name || 'Movement'}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {stop.suggestedRoutine.exercises.length} Decompression Drills
+                      </span>
+                    </div>
+
+                    <div className="h-56 rounded-xl overflow-hidden border border-slate-800 shadow-inner bg-slate-950">
+                      {stop.suggestedRoutine.exercises[0] && (
+                        <Exercise3DCharacter
+                          exercise={stop.suggestedRoutine.exercises[0]}
+                          variant="card"
+                          isPlaying={true}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>

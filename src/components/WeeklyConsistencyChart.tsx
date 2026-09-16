@@ -280,7 +280,7 @@ export const WeeklyConsistencyChart: React.FC<WeeklyConsistencyChartProps> = ({ 
       <div className="w-full h-72 sm:h-80 pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={viewMode === 'weekly' ? weeklyData : dailyData}
+            data={(viewMode === 'weekly' ? weeklyData : dailyData) as any[]}
             margin={{ top: 15, right: 20, left: -10, bottom: 5 }}
           >
             <CartesianGrid 

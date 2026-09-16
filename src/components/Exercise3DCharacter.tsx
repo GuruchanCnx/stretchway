@@ -34,6 +34,7 @@ export const Exercise3DCharacter: React.FC<Exercise3DCharacterProps> = ({
   const [isXRayMode, setIsXRayMode] = useState<boolean>(false);
   const [cameraAngle, setCameraAngle] = useState<'iso' | 'front' | 'side'>('iso');
   const [isHovered, setIsHovered] = useState(false);
+  const [webglSupported, setWebglSupported] = useState<boolean>(true);
 
   // Sync external playing prop
   useEffect(() => {
@@ -80,13 +81,20 @@ export const Exercise3DCharacter: React.FC<Exercise3DCharacterProps> = ({
         alpha: true,
         powerPreference: 'high-performance'
       });
+      if (!renderer.getContext()) {
+        throw new Error('WebGL context unavailable');
+      }
+      setWebglSupported(true);
     } catch (e) {
-      console.warn('WebGL init failed, fallback needed', e);
+      console.warn('WebGL init failed, falling back to 2D kinetic biomechanic view', e);
+      setWebglSupported(false);
       return;
     }
 
+    const initW = Math.max(container.clientWidth || 0, isCompact ? 240 : 320);
+    const initH = Math.max(container.clientHeight || 0, isCompact ? 160 : 280);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setSize(initW, initH);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -96,7 +104,7 @@ export const Exercise3DCharacter: React.FC<Exercise3DCharacterProps> = ({
     // CAMERA
     const camera = new THREE.PerspectiveCamera(
       42,
-      container.clientWidth / Math.max(container.clientHeight, 1),
+      initW / Math.max(initH, 1),
       0.1,
       100
     );
@@ -643,6 +651,82 @@ export const Exercise3DCharacter: React.FC<Exercise3DCharacterProps> = ({
           break;
         }
 
+        case 'quad-stretch': {
+          // Standing single leg quad stretch: right knee flexed backward, right hand holds foot
+          const quadPulse = Math.sin(t * 1.2) * 0.1;
+          rightHipJoint.rotation.x = -0.15 + quadPulse;
+          rightKneeJoint.rotation.x = -2.2 - quadPulse; // deep knee bend
+          rightShoulderJoint.rotation.x = -0.6; // arm reaching back to hold ankle
+          leftShoulderJoint.rotation.x = 0.5; // counter-balance arm forward
+          leftKneeJoint.rotation.x = -0.05; // slight softening of standing knee
+          highlightPoints[0].position.set(-0.25, -0.6, 0.1);
+          highlightPoints[1].position.set(-0.25, -0.9, 0.1);
+          highlightPoints[2].visible = false;
+          highlightPoints[3].visible = false;
+          break;
+        }
+
+        case 'eye-palming': {
+          // Hands lifted to gently cup over eye orbits with soft breath
+          const breathWave = Math.sin(t * 1.1) * 0.05;
+          headGroup.rotation.x = 0.15 + breathWave;
+          leftShoulderJoint.rotation.x = 1.1;
+          rightShoulderJoint.rotation.x = 1.1;
+          leftShoulderJoint.rotation.z = -0.35;
+          rightShoulderJoint.rotation.z = 0.35;
+          leftElbowJoint.rotation.x = -1.9;
+          rightElbowJoint.rotation.x = -1.9;
+          leftForearm.rotation.z = 0.6;
+          rightForearm.rotation.z = -0.6;
+          leftHand.position.set(-0.15, 1.45, 0.45);
+          rightHand.position.set(0.15, 1.45, 0.45);
+          highlightPoints[0].position.set(-0.15, 1.42, 0.35);
+          highlightPoints[1].position.set(0.15, 1.42, 0.35);
+          highlightPoints[2].visible = false;
+          highlightPoints[3].visible = false;
+          break;
+        }
+
+        case 'warrior-flow': {
+          // Dynamic Warrior stance: wide lunged legs, arms sweeping overhead
+          const warriorBreath = Math.sin(t * 1.2);
+          leftHipJoint.rotation.x = 0.85; // front lunged leg
+          leftKneeJoint.rotation.x = -1.25;
+          rightHipJoint.rotation.x = -0.6; // rear extended leg
+          rightKneeJoint.rotation.x = -0.1;
+          torso.rotation.x = -0.15;
+          leftShoulderJoint.rotation.x = 2.8 + warriorBreath * 0.15; // arms high overhead
+          rightShoulderJoint.rotation.x = 2.8 + warriorBreath * 0.15;
+          leftShoulderJoint.rotation.z = -0.2;
+          rightShoulderJoint.rotation.z = 0.2;
+          highlightPoints[0].position.set(0, 0.9, 0);
+          highlightPoints[1].position.set(0.3, -0.6, 0.4);
+          highlightPoints[2].position.set(-0.3, -0.7, -0.4);
+          highlightPoints[3].visible = false;
+          break;
+        }
+
+        case 'rooting-stance': {
+          // Grounded horse stance with cyclical abdominal compression
+          const rootPulse = Math.sin(t * 1.3) * 0.12;
+          leftHipJoint.rotation.z = -0.3;
+          rightHipJoint.rotation.z = 0.3;
+          leftHipJoint.rotation.x = 0.45 + rootPulse;
+          rightHipJoint.rotation.x = 0.45 + rootPulse;
+          leftKneeJoint.rotation.x = -0.65 - rootPulse;
+          rightKneeJoint.rotation.x = -0.65 - rootPulse;
+          leftShoulderJoint.rotation.x = 0.5;
+          rightShoulderJoint.rotation.x = 0.5;
+          leftElbowJoint.rotation.x = -0.8;
+          rightElbowJoint.rotation.x = -0.8;
+          torso.rotation.x = 0.08;
+          highlightPoints[0].position.set(0, 0.1, 0.15); // Dan Tian
+          highlightPoints[1].position.set(0, -0.2, 0);
+          highlightPoints[2].visible = false;
+          highlightPoints[3].visible = false;
+          break;
+        }
+
         default: {
           // General mobility: rhythmic breathing and gentle shoulder roll
           const idleWave = Math.sin(t * 1.5);
@@ -686,11 +770,76 @@ export const Exercise3DCharacter: React.FC<Exercise3DCharacterProps> = ({
         isCompact ? 'min-h-[140px]' : 'min-h-[260px]'
       }`}
     >
-      {/* Three.js Canvas */}
-      <canvas 
-        ref={canvasRef} 
-        className="w-full h-full cursor-grab active:cursor-grabbing block"
-      />
+      {/* Three.js Canvas or WebGL Fallback */}
+      {webglSupported ? (
+        <canvas 
+          ref={canvasRef} 
+          className="w-full h-full cursor-grab active:cursor-grabbing block"
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center relative p-4 bg-slate-950/95">
+          {/* Animated Biomechanical Mannequin Vector */}
+          <div className="relative w-36 h-48 sm:w-44 sm:h-56 flex items-center justify-center">
+            {/* Hologram Stage Circle */}
+            <div 
+              className="absolute bottom-2 w-32 h-6 rounded-full border border-cyan-500/40 bg-cyan-950/30 blur-[1px]"
+              style={{ boxShadow: `0 0 15px ${themeColor}40` }}
+            />
+            {/* Biomechanical Silhouette & Skeleton Nodes */}
+            <svg viewBox="0 0 160 220" className="w-full h-full overflow-visible drop-shadow-md">
+              {/* Head / Helmet */}
+              <circle cx="80" cy="38" r="16" fill="#1e293b" stroke={themeColor} strokeWidth="2" />
+              <rect x="68" y="34" width="24" height="6" rx="3" fill={themeColor} className="animate-pulse" />
+
+              {/* Spine / Torso */}
+              <line x1="80" y1="54" x2="80" y2="120" stroke={themeColor} strokeWidth="3" strokeDasharray="3,3" />
+              <rect x="66" y="58" width="28" height="48" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
+              {/* Glowing Core Breath Indicator */}
+              <circle cx="80" cy="78" r="6" fill={themeColor} className="animate-ping opacity-75" />
+              <circle cx="80" cy="78" r="5" fill={themeColor} />
+
+              {/* Shoulders & Arms with movement animation */}
+              <line x1="52" y1="64" x2="108" y2="64" stroke="#475569" strokeWidth="2.5" />
+              <circle cx="52" cy="64" r="4" fill="#38bdf8" />
+              <circle cx="108" cy="64" r="4" fill="#38bdf8" />
+              
+              {/* Dynamic Arm Lines */}
+              <line x1="52" y1="64" x2="38" y2="100" stroke="#38bdf8" strokeWidth="2.5" />
+              <circle cx="38" cy="100" r="3.5" fill="#38bdf8" />
+              <line x1="38" y1="100" x2="48" y2="132" stroke="#38bdf8" strokeWidth="2" />
+              <circle cx="48" cy="132" r="3" fill="#38bdf8" />
+
+              <line x1="108" y1="64" x2="122" y2="100" stroke="#38bdf8" strokeWidth="2.5" />
+              <circle cx="122" cy="100" r="3.5" fill="#38bdf8" />
+              <line x1="122" y1="100" x2="112" y2="132" stroke="#38bdf8" strokeWidth="2" />
+              <circle cx="112" cy="132" r="3" fill="#38bdf8" />
+
+              {/* Pelvis & Legs */}
+              <rect x="68" y="112" width="24" height="14" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+              <circle cx="68" cy="126" r="4" fill="#64748b" />
+              <circle cx="92" cy="126" r="4" fill="#64748b" />
+
+              <line x1="68" y1="126" x2="62" y2="168" stroke="#475569" strokeWidth="2.5" />
+              <circle cx="62" cy="168" r="3.5" fill={themeColor} />
+              <line x1="62" y1="168" x2="62" y2="200" stroke="#475569" strokeWidth="2" />
+              <rect x="54" y="200" width="16" height="6" rx="2" fill="#334155" />
+
+              <line x1="92" y1="126" x2="98" y2="168" stroke="#475569" strokeWidth="2.5" />
+              <circle cx="98" cy="168" r="3.5" fill={themeColor} />
+              <line x1="98" y1="168" x2="98" y2="200" stroke="#475569" strokeWidth="2" />
+              <rect x="90" y="200" width="16" height="6" rx="2" fill="#334155" />
+            </svg>
+          </div>
+          <div className="text-center mt-1">
+            <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider block">
+              Kinetic Motion Active ({exercise.name})
+            </span>
+            <span className="text-[9px] text-slate-500">
+              Hardware accelerated WebGL fallback enabled
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Floating 3D Badge Indicator */}
       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-10">

@@ -6,7 +6,9 @@ import { UserProgress, UserAssessmentProfile } from '../types';
 
 // Initialize Firebase App instance safely
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+export const db = firebaseConfig.firestoreDatabaseId 
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
+  : getFirestore(app);
 export const auth = getAuth(app);
 
 // Authenticate anonymously or return active user
@@ -30,7 +32,7 @@ export const syncUserProgressToFirestore = async (userId: string, progress: User
       currentStreakDays: progress.currentStreakDays,
       totalMinutesStretched: progress.totalMinutesStretched,
       totalSessionsCompleted: progress.completedHistory.length,
-      lastActiveDate: progress.lastActiveDate,
+      lastSessionDate: progress.lastSessionDate || (progress as any).lastActiveDate || '',
       favoriteExerciseIds: progress.favoriteExerciseIds || [],
       updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -94,7 +96,7 @@ export const fetchUserProgressFromFirestore = async (userId: string): Promise<Pa
       return {
         currentStreakDays: data.currentStreakDays || 0,
         totalMinutesStretched: data.totalMinutesStretched || 0,
-        lastActiveDate: data.lastActiveDate || '',
+        lastSessionDate: data.lastSessionDate || data.lastActiveDate || '',
         favoriteExerciseIds: data.favoriteExerciseIds || []
       };
     }

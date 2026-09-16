@@ -24,7 +24,7 @@ export const BreathEngine: React.FC<BreathEngineProps> = ({
   const [phaseTimeLeft, setPhaseTimeLeft] = useState(selectedProtocol.inhaleSec);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Switch protocol resets
   const handleSelectProtocol = (p: BreathProtocol) => {
