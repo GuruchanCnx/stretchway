@@ -22,6 +22,7 @@ import {
   Droplets,
   BookOpen,
   Trash2,
+  Copy,
   Wand2,
   Calendar,
   Target,
@@ -312,6 +313,20 @@ export const App: React.FC = () => {
       });
       return updated;
     });
+  };
+
+  // Handle custom routine duplication
+  const handleDuplicateCustomRoutine = (routine: Routine, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const duplicated: Routine = {
+      ...routine,
+      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: `${routine.title} (Copy)`,
+      subtitle: routine.subtitle || 'Cloned custom sequence',
+      isFavorite: false,
+      exercises: [...routine.exercises]
+    };
+    handleRoutineCreated(duplicated, false);
   };
 
   // Handle theme & accent color scheme
@@ -724,6 +739,10 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
                 <SmartRoutineCreator
                   onRoutineCreated={handleRoutineCreated}
                   currentVehicle={currentVehicle}
+                  customRoutines={customRoutines}
+                  onDeleteRoutine={handleDeleteCustomRoutine}
+                  onDuplicateRoutine={handleDuplicateCustomRoutine}
+                  onStartRoutine={(routine) => setActiveRoutine(routine)}
                 />
               </div>
 
@@ -794,13 +813,22 @@ Consistent spinal decompression reduces lumbar shear, relieves forward-head subo
                               <span>{routine.durationMinutes} Min</span>
                             </span>
                             {isCustom && (
-                              <button
-                                onClick={(e) => handleDeleteCustomRoutine(routine.id, e)}
-                                title="Remove Custom Routine"
-                                className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-rose-950/80 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-500/50 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={(e) => handleDuplicateCustomRoutine(routine, e)}
+                                  title="Duplicate Custom Routine"
+                                  className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-cyan-950/80 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/50 transition-colors"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteCustomRoutine(routine.id, e)}
+                                  title="Remove Custom Routine"
+                                  className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-rose-950/80 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-500/50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>

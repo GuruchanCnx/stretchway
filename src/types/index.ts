@@ -62,6 +62,7 @@ export interface Routine {
   coachRationale: string;
   targetAreas: string[];
   bannerGradient?: string;
+  isFavorite?: boolean;
 }
 
 export interface BreathProtocol {
