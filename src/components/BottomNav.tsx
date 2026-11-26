@@ -8,22 +8,22 @@ import {
   Navigation, 
   BookOpen, 
   MoreHorizontal, 
-  Car, 
-  Bike, 
-  Truck, 
   X,
-  Play,
-  UserCheck
+  UserCheck,
+  ShoppingBag,
+  OctagonAlert
 } from 'lucide-react';
 import { VehicleType, UserProgress } from '../types';
+import { triggerHaptic } from '../utils/haptics';
 
-export type AppTabType = 'routines' | 'bodymap' | 'breath' | 'cockpit' | 'trip' | 'log' | 'library';
+export type AppTabType = 'routines' | 'bodymap' | 'breath' | 'cockpit' | 'trip' | 'log' | 'library' | 'store';
 
 interface BottomNavProps {
   activeTab: AppTabType;
   onSelectTab: (tab: AppTabType) => void;
   onOpenAICoach: () => void;
   onOpenOnboarding: () => void;
+  onOpenRedLightMode?: () => void;
   userProgress: UserProgress;
   currentVehicle: VehicleType;
   onSelectVehicle: (v: VehicleType) => void;
@@ -35,9 +35,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onSelectTab,
   onOpenAICoach,
   onOpenOnboarding,
+  onOpenRedLightMode,
   userProgress,
-  currentVehicle,
-  onSelectVehicle,
   theme = 'dark'
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -120,9 +119,28 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             </div>
 
             {/* Quick Action Navigation Grid */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 onClick={() => {
+                  triggerHaptic('light');
+                  onSelectTab('store');
+                  setShowMoreMenu(false);
+                }}
+                className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                  activeTab === 'store'
+                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold'
+                    : theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                <span className="text-[11px] font-bold">Gear Store</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
                   onSelectTab('cockpit');
                   setShowMoreMenu(false);
                 }}
@@ -140,6 +158,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
               <button
                 onClick={() => {
+                  triggerHaptic('light');
                   onSelectTab('trip');
                   setShowMoreMenu(false);
                 }}
@@ -157,6 +176,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
               <button
                 onClick={() => {
+                  triggerHaptic('light');
                   onSelectTab('library');
                   setShowMoreMenu(false);
                 }}
@@ -173,9 +193,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               </button>
             </div>
 
+            {onOpenRedLightMode && (
+              <button
+                onClick={() => {
+                  triggerHaptic('medium');
+                  setShowMoreMenu(false);
+                  onOpenRedLightMode();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 shadow-lg"
+              >
+                <OctagonAlert className="w-4 h-4" />
+                <span>Traffic Light Quick-Stop Mode</span>
+              </button>
+            )}
+
             {/* Quick Action: Tailor Assessment */}
             <button
               onClick={() => {
+                triggerHaptic('light');
                 setShowMoreMenu(false);
                 onOpenOnboarding();
               }}

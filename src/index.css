@@ -355,3 +355,31 @@ html.light ::-webkit-scrollbar-thumb,
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
 }
+
+/* =========================================================
+   PRINTABLE PDF ROUTINE GUIDE STYLES (@media print)
+   ========================================================= */
+.print-only-sheet {
+  display: none;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  header,
+  nav,
+  footer,
+  .no-print,
+  #stretchway-main-shell {
+    display: none !important;
+  }
+  .print-only-sheet {
+    display: block !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 16px !important;
+  }
+}
+

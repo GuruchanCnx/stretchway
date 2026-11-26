@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Firestore Schema Blueprint for StretchWay",
-  "description": "Firestore collections and documents blueprint for driver stretch sessions, recovery logs, and user profile",
+  "description": "Firestore collections and documents blueprint for driver stretch sessions, custom routines, recovery logs, ergonomic gear stock, and user orders",
   "entities": {
     "users": {
       "title": "User Profile & Progress",
-      "description": "User profile with streak, minutes, vehicle preferences, and favorites",
+      "description": "User profile with streak, minutes, vehicle preferences, favorites, assessment, and custom routines",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
@@ -16,19 +16,24 @@
         "currentStreakDays": { "type": "number" },
         "totalMinutesStretched": { "type": "number" },
         "totalSessionsCompleted": { "type": "number" },
+        "lastSessionDate": { "type": "string" },
         "lastActiveDate": { "type": "string" },
-        "favoriteExerciseIds": { "type": "array", "items": { "type": "string" } },
-        "updatedAt": { "type": "string" }
+        "favoriteExerciseIds": { "type": "array" },
+        "assessmentProfile": { "type": "object" },
+        "customRoutines": { "type": "array" },
+        "lastCustomRoutineGeneratedAt": { "type": "string" },
+        "tailoredAt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "totalMinutesStretched"]
     },
     "sessions": {
       "title": "Completed Stretch / Decompression Sessions",
-      "description": "Individual stretch logs with pre/post pain scores and vehicle context",
+      "description": "Individual stretch logs with pre/post comfort scores and vehicle context",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "sessionId": { "type": "string" },
         "routineId": { "type": "string" },
         "title": { "type": "string" },
         "durationMinutes": { "type": "number" },
@@ -36,25 +41,82 @@
         "completedAt": { "type": "string" },
         "preComfortScore": { "type": "number" },
         "postComfortScore": { "type": "number" },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "title", "durationMinutes", "completedAt"]
+      "required": ["userId", "title", "durationMinutes", "completedAt", "createdAt"]
     },
     "customRoutines": {
       "title": "User Created / AI Prescribed Custom Routines",
-      "description": "Custom workouts generated or created by the user",
+      "description": "Custom workouts generated or created by the user including custom routine notes",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
         "routineId": { "type": "string" },
         "title": { "type": "string" },
-        "description": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "notes": { "type": "string" },
+        "vehicle": { "type": "string" },
+        "intensity": { "type": "string" },
         "totalDurationMinutes": { "type": "number" },
-        "applicableVehicles": { "type": "array", "items": { "type": "string" } },
-        "exerciseIds": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string" }
+        "exerciseIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "title", "exerciseIds"]
+      "required": ["userId", "routineId", "title", "exerciseIds", "createdAt"]
+    },
+    "orders": {
+      "title": "Recovery Store Orders",
+      "description": "Ergonomic recovery gear orders tracked for 6-month user order frequency analytics",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "orderDate": { "type": "string" },
+        "monthKey": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["Confirmed", "Shipped", "Delivered"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "userId", "orderDate", "monthKey", "items", "total", "status", "createdAt"]
+    },
+    "gearInventory": {
+      "title": "Ergonomic Gear Stock Levels",
+      "description": "Live stock counts and low-stock thresholds for ergonomic gear items",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "stock": { "type": "number" },
+        "lowStockThreshold": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "productId", "stock", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/users" },
+      "description": "Authenticated user profile, streaks, preferences, and tailored mobility records"
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/sessions" },
+      "description": "Completed driver decompression and breathing sessions"
+    },
+    "/customRoutines/{routineId}": {
+      "schema": { "$ref": "#/entities/customRoutines" },
+      "description": "User-built or AI-synthesized stretch routines with notes"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/orders" },
+      "description": "Ergonomic recovery store orders placed by the user"
+    },
+    "/gearInventory/{productId}": {
+      "schema": { "$ref": "#/entities/gearInventory" },
+      "description": "Ergonomic gear inventory stock tracking"
     }
   }
 }

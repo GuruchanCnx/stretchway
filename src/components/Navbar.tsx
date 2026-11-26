@@ -13,13 +13,14 @@ import {
   Activity,
   Palette,
   Check,
-  Target,
   Settings,
-  Zap
+  ShoppingBag,
+  OctagonAlert
 } from 'lucide-react';
 import { VehicleType, UserProgress, AccentColorTheme } from '../types';
 import { SupportedLang, TRANSLATIONS } from '../data/translations';
 import { THEME_CONFIGS } from '../data/themes';
+import { triggerHaptic } from '../utils/haptics';
 
 interface NavbarProps {
   currentVehicle: VehicleType;
@@ -39,6 +40,9 @@ interface NavbarProps {
   todayMinutes?: number;
   onOpenDailyGoalModal?: () => void;
   onOpenUserSettings?: () => void;
+  onOpenRedLightMode?: () => void;
+  onOpenStore?: () => void;
+  cartCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -58,7 +62,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   dailyGoalMinutes = 15,
   todayMinutes = 0,
   onOpenDailyGoalModal,
-  onOpenUserSettings
+  onOpenUserSettings,
+  onOpenRedLightMode,
+  onOpenStore,
+  cartCount = 0
 }) => {
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
   const currentAccent = THEME_CONFIGS[accentTheme] || THEME_CONFIGS.ocean;
@@ -237,6 +244,47 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="font-mono text-[11px] truncate max-w-[140px]">{userProgress.equippedTitle}</span>
+              </button>
+            )}
+
+            {/* Traffic Light Quick-Stop Trigger */}
+            {onOpenRedLightMode && (
+              <button
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onOpenRedLightMode();
+                }}
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                title="Traffic Light Quick-Stop Relief"
+              >
+                <OctagonAlert className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Quick-Stop</span>
+              </button>
+            )}
+
+            {/* Ergonomic Recovery Gear Store Trigger */}
+            {onOpenStore && (
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  onOpenStore();
+                }}
+                className={`relative flex items-center space-x-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'store'
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                    : theme === 'light'
+                      ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800'
+                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                }`}
+                title="Ergonomic Recovery Gear Store & Stock"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">Store</span>
+                {cartCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-cyan-400 text-slate-950 text-[10px] font-black">
+                    {cartCount}
+                  </span>
+                )}
               </button>
             )}
 

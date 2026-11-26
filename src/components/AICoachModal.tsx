@@ -64,7 +64,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
       label: 'Lower Back Stiffness',
       query: 'I have acute Lower Back Stiffness and lumbar disc tension from prolonged sitting behind the wheel.',
       icon: '🧘',
-      exerciseId: 'car-pelvic-tilt'
+      exerciseId: 'car-pelvic-clock'
     },
     {
       label: 'Wrist Fatigue',
@@ -76,7 +76,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
       label: 'Highway Drowsiness',
       query: 'Emergency 3-minute diaphragmatic alertness protocol for highway drowsiness and brain fog.',
       icon: '🔥',
-      exerciseId: 'car-chest-opener'
+      exerciseId: 'car-shoulder-retraction'
     },
     {
       label: 'Sciatica / Piriformis',
@@ -88,7 +88,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
       label: 'Tight Hip Flexors',
       query: 'Release constricted psoas and hip flexor tension caused by hours of accelerator pedal use.',
       icon: '✨',
-      exerciseId: 'car-shoulder-rolls'
+      exerciseId: 'bike-shoulder-rolls'
     }
   ];
 
@@ -210,31 +210,36 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
       const data = await res.json();
       if (data && data.exercises) {
         const fullRoutine: Routine = {
-          id: `custom-ai-${Date.now()}`,
+          id: data.id || `custom-ai-${Date.now()}`,
           title: data.title || 'AI Personalized Driver Relief',
           subtitle: data.subtitle || 'Custom biomechanical sequence',
+          notes: data.notes || '',
           category: 'quick',
           vehicle: genVehicle,
-          durationMinutes: data.totalDurationMinutes || genDuration,
-          intensity: 'Moderate',
-          targetAreas: data.targetMuscles || genPainAreas,
+          durationMinutes: data.durationMinutes || data.totalDurationMinutes || genDuration,
+          intensity: data.intensity || 'Moderate',
+          targetAreas: Array.isArray(data.targetAreas) ? data.targetAreas : (Array.isArray(data.targetMuscles) ? data.targetMuscles : genPainAreas),
           coachRationale: data.coachRationale || 'Targeted decompression sequence designed by AI Biomechanics Engine.',
           bannerGradient: 'from-cyan-500 to-sky-600',
           exercises: data.exercises.map((ex: any, i: number) => ({
             id: ex.id || `ai-ex-${i}`,
             name: ex.name,
-            category: 'quick',
-            vehicle: [genVehicle],
+            category: ex.category || 'quick',
+            vehicle: Array.isArray(ex.vehicle) ? ex.vehicle : [genVehicle],
             durationSeconds: ex.durationSeconds || 45,
             reps: ex.reps || '10 reps',
             intensity: ex.intensity || 'Moderate',
-            targetMuscles: Array.isArray(ex.targetArea) ? ex.targetArea : [ex.targetArea || 'Spine'],
-            muscleGroup: ['lower-back', 'neck'],
-            location: 'Either',
-            steps: ex.steps || ['Perform smoothly', 'Maintain breathing'],
+            targetMuscles: Array.isArray(ex.targetMuscles)
+              ? ex.targetMuscles
+              : Array.isArray(ex.targetArea)
+                ? ex.targetArea
+                : [ex.targetArea || 'Spine'],
+            muscleGroup: Array.isArray(ex.muscleGroup) ? ex.muscleGroup : ['lower-back', 'neck'],
+            location: ex.location || 'Either',
+            steps: Array.isArray(ex.steps) ? ex.steps : ['Perform smoothly', 'Maintain breathing'],
             formCues: ex.formCues || 'Keep spine neutral',
             avoidMistake: ex.avoidMistake || 'Avoid jerking motions',
-            biomechanicsRationale: data.coachRationale || 'Releases highway compression',
+            biomechanicsRationale: ex.biomechanicsRationale || data.coachRationale || 'Releases highway compression',
             breathPattern: ex.breathPattern || 'Deep diaphragmatic breathing'
           }))
         };
@@ -282,7 +287,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({
                   Coach Lyra • AI Biomechanics Master
                 </h3>
                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/60">
-                  Gemini 3.7 Flash
+                  Gemini 4 Hydrogen
                 </span>
               </div>
               <p className="text-xs text-slate-400">

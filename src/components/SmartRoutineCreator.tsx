@@ -1,27 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Wand2, 
-  Sparkles, 
-  Clock, 
-  Car, 
-  Bike, 
-  Truck, 
-  Bus, 
-  AlertTriangle, 
-  Play, 
-  Plus, 
-  CheckCircle2, 
-  RotateCcw, 
-  Flame, 
-  Activity, 
-  ShieldCheck, 
-  ChevronRight,
-  ChevronLeft,
+import {
+  Wand2,
+  Sparkles,
+  Clock,
+  Car,
+  Bike,
+  Truck,
+  Bus,
+  Play,
+  Plus,
+  CheckCircle2,
+  Activity,
   ChevronUp,
   ChevronDown,
-  Zap, 
-  Layers, 
-  HeartPulse, 
+  Layers,
+  HeartPulse,
   Info,
   Trash2,
   Copy,
@@ -30,15 +23,106 @@ import {
   GripVertical,
   X,
   Search,
-  Filter,
-  Check,
   Bookmark,
-  Heart
+  Sliders,
+  StickyNote,
+  Printer,
+  Bot,
+  Gauge,
+  Edit3
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Routine, VehicleType, Exercise, IntensityLevel } from '../types';
 import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
 import { ALL_EXERCISES } from '../data/exercises';
+import { triggerHaptic } from '../utils/haptics';
+import { encodeRoutineShareUrl, buildRoutineShareSummary } from '../utils/sharePdf';
+
+export function computeRecoveryImpact(
+  exercises: Exercise[],
+  difficultyStep: number,
+  dailyGoalMinutes: number = 15
+): {
+  score: number;
+  label: string;
+  barGradient: string;
+  goalPct: number;
+  matchPct: number;
+  muscleCount: number;
+} {
+  if (!exercises || exercises.length === 0) {
+    return {
+      score: 0,
+      label: 'Add drills to calculate',
+      barGradient: 'from-slate-700 to-slate-600',
+      goalPct: 0,
+      matchPct: 0,
+      muscleCount: 0
+    };
+  }
+
+  const totalSec = exercises.reduce((acc, e) => acc + (e.durationSeconds || 45), 0);
+  const totalMin = totalSec / 60;
+  const goalRatio = Math.min(1, totalMin / Math.max(3, dailyGoalMinutes));
+  const durationPts = goalRatio * 42; // up to 42 pts
+
+  const uniqueMuscles = new Set<string>();
+  exercises.forEach((e) => (e.muscleGroup || []).forEach((m) => uniqueMuscles.add(m)));
+  const diversityPts = Math.min(23, uniqueMuscles.size * 5.75); // up to 23 pts
+
+  const targetMap: Record<number, IntensityLevel | 'all'> = {
+    0: 'all',
+    1: 'Gentle',
+    2: 'Moderate',
+    3: 'Deep Release'
+  };
+  const target = targetMap[difficultyStep] ?? 'all';
+
+  let matchingCount = exercises.length;
+  let intensityPts = 0;
+
+  if (target === 'all') {
+    const avgIntensityWeight =
+      exercises.reduce((acc, e) => {
+        if (e.intensity === 'Deep Release') return acc + 1.0;
+        if (e.intensity === 'Moderate') return acc + 0.88;
+        return acc + 0.72;
+      }, 0) / exercises.length;
+    intensityPts = avgIntensityWeight * 35;
+    matchingCount = exercises.length;
+  } else {
+    matchingCount = exercises.filter((e) => e.intensity === target).length;
+    const matchRatio = matchingCount / exercises.length;
+    const bonusMultiplier = target === 'Deep Release' ? 1 : target === 'Moderate' ? 0.94 : 0.88;
+    intensityPts = matchRatio * 35 * bonusMultiplier + (1 - matchRatio) * 14;
+  }
+
+  const score = Math.min(100, Math.max(8, Math.round(durationPts + diversityPts + intensityPts)));
+  const goalPct = Math.min(100, Math.round(goalRatio * 100));
+  const matchPct = Math.round((matchingCount / exercises.length) * 100);
+
+  let label = 'Light Recovery';
+  let barGradient = 'from-emerald-500 to-teal-400';
+  if (score >= 80) {
+    label = 'Optimal Daily Rebalance';
+    barGradient = 'from-cyan-400 via-sky-400 to-emerald-400';
+  } else if (score >= 55) {
+    label = 'Solid Decompression';
+    barGradient = 'from-cyan-500 to-blue-500';
+  } else if (score >= 35) {
+    label = 'Moderate Pitstop Relief';
+    barGradient = 'from-amber-400 to-cyan-400';
+  }
+
+  return {
+    score,
+    label,
+    barGradient,
+    goalPct,
+    matchPct,
+    muscleCount: uniqueMuscles.size
+  };
+}
 
 interface SmartRoutineCreatorProps {
   onRoutineCreated: (routine: Routine, autoStart?: boolean) => void;
@@ -49,7 +133,17 @@ interface SmartRoutineCreatorProps {
   onStartRoutine?: (routine: Routine) => void;
   onClose?: () => void;
   isCompact?: boolean;
+  onPrintRoutinePdf?: (routine: Routine) => void;
+  onUpdateCustomRoutineNotes?: (routineId: string, notes: string) => void;
+  dailyGoalMinutes?: number;
 }
+
+const DIFFICULTY_LEVELS: { step: number; label: string; badge: string; intensity: IntensityLevel | 'all'; desc: string }[] = [
+  { step: 0, label: 'All Levels', badge: 'All', intensity: 'all', desc: 'Balanced low, medium & high drills' },
+  { step: 1, label: 'Low', badge: 'Gentle', intensity: 'Gentle', desc: 'Gentle in-seat mobility & zero strain' },
+  { step: 2, label: 'Medium', badge: 'Moderate', intensity: 'Moderate', desc: 'Active spinal decompression & hips' },
+  { step: 3, label: 'High', badge: 'Deep Release', intensity: 'Deep Release', desc: 'Deep fascia release & rest-stop traction' }
+];
 
 export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   onRoutineCreated,
@@ -58,10 +152,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   onDeleteRoutine,
   onDuplicateRoutine,
   onStartRoutine,
-  onClose,
-  isCompact = false
+  onPrintRoutinePdf,
+  onUpdateCustomRoutineNotes,
+  dailyGoalMinutes = 15
 }) => {
-  // Navigation tabs inside the Creator
   const [activeTab, setActiveTab] = useState<'builder' | 'ai_synthesizer' | 'saved_routines'>('builder');
 
   // Form State for AI Synthesis
@@ -74,20 +168,33 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   const [vehicle, setVehicle] = useState<'car' | 'two-wheeler' | 'truck' | 'commuter'>(
     currentVehicle === 'two-wheeler' ? 'two-wheeler' : currentVehicle === 'truck' ? 'truck' : 'car'
   );
-  const [locationType, setLocationType] = useState<'In-Seat' | 'Off-Vehicle / Standing' | 'Either'>('In-Seat');
-  const [goal, setGoal] = useState<'pain_relief' | 'alertness' | 'post_trip' | 'speed_reset'>('pain_relief');
-  
+  const [locationType] = useState<'In-Seat' | 'Off-Vehicle / Standing' | 'Either'>('In-Seat');
+  const [goal] = useState<'pain_relief' | 'alertness' | 'post_trip' | 'speed_reset'>('pain_relief');
+
   // Custom Routine Builder State
   const [routineTitle, setRoutineTitle] = useState<string>('My Custom Highway Recovery');
   const [routineSubtitle, setRoutineSubtitle] = useState<string>('Personalized posture decompression flow');
+  const [routineNotes, setRoutineNotes] = useState<string>(
+    'Check lumbar cushion depth before driving; focus on smooth diaphragmatic exhales.'
+  );
   const [routineExercises, setRoutineExercises] = useState<Exercise[]>(() => {
-    // Initial starter exercises matching vehicle
     const vehicleKey = currentVehicle === 'two-wheeler' ? 'two-wheeler' : 'car';
-    return ALL_EXERCISES.filter(ex => ex.vehicle.includes(vehicleKey as any)).slice(0, 4);
+    return ALL_EXERCISES.filter((ex) => ex.vehicle.includes(vehicleKey as any)).slice(0, 4);
   });
   const [selectedPreviewExercise, setSelectedPreviewExercise] = useState<Exercise | null>(null);
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [hasAppended, setHasAppended] = useState(false);
+
+  // Difficulty Filter Slider (0 = All, 1 = Low/Gentle, 2 = Medium/Moderate, 3 = High/Deep Release)
+  const [difficultyStep, setDifficultyStep] = useState<number>(0);
+  const activeDifficulty = DIFFICULTY_LEVELS[difficultyStep] || DIFFICULTY_LEVELS[0];
+
+  // Inline note editing on Saved Custom Cards
+  const [editingNoteCardId, setEditingNoteCardId] = useState<string | null>(null);
+  const [editingNoteDraft, setEditingNoteDraft] = useState<string>('');
+
+  // Agentic Optimization state
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   // Drag & drop reordering state
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -107,7 +214,12 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   const [generationStep, setGenerationStep] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Set default preview exercise on mount or when exercises change
+  // Reset Save lock whenever builder fields change
+  useEffect(() => {
+    setHasAppended(false);
+  }, [routineTitle, routineSubtitle, routineNotes, routineExercises]);
+
+  // Keep preview exercise valid
   useEffect(() => {
     if (routineExercises.length > 0 && !selectedPreviewExercise) {
       setSelectedPreviewExercise(routineExercises[0]);
@@ -116,7 +228,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
     }
   }, [routineExercises, selectedPreviewExercise]);
 
-  // Real-time Total Duration estimate calculation (sum of all exercise durationSeconds)
+  // Real-time Total Duration estimate calculation
   const totalSeconds = useMemo(() => {
     return routineExercises.reduce((acc, ex) => acc + (ex.durationSeconds || 45), 0);
   }, [routineExercises]);
@@ -136,12 +248,29 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   // Overall intensity calculation based on exercises
   const calculatedIntensity = useMemo<IntensityLevel>(() => {
     if (routineExercises.length === 0) return 'Gentle';
-    const deepCount = routineExercises.filter(e => e.intensity === 'Deep Release').length;
-    const modCount = routineExercises.filter(e => e.intensity === 'Moderate').length;
+    const deepCount = routineExercises.filter((e) => e.intensity === 'Deep Release').length;
+    const modCount = routineExercises.filter((e) => e.intensity === 'Moderate').length;
     if (deepCount >= 2) return 'Deep Release';
     if (modCount >= 2 || deepCount >= 1) return 'Moderate';
     return 'Gentle';
   }, [routineExercises]);
+
+  // Builder Recovery Impact score reactive to Difficulty Filter
+  const builderImpact = useMemo(() => {
+    return computeRecoveryImpact(routineExercises, difficultyStep, dailyGoalMinutes);
+  }, [routineExercises, difficultyStep, dailyGoalMinutes]);
+
+  // Quick difficulty-matched suggestions (excluding exercises already in sequence)
+  const suggestedExercises = useMemo(() => {
+    const existingIds = new Set(routineExercises.map((e) => e.id.replace(/-\d{4}$/, '')));
+    return ALL_EXERCISES.filter((ex) => {
+      if (existingIds.has(ex.id)) return false;
+      if (activeDifficulty.intensity !== 'all' && ex.intensity !== activeDifficulty.intensity) {
+        return false;
+      }
+      return true;
+    }).slice(0, 6);
+  }, [routineExercises, activeDifficulty]);
 
   // Intensity Badge Helper (Low, Medium, High)
   const getIntensityBadge = (intensity?: string) => {
@@ -175,16 +304,15 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
     { id: 'Thoracic & Mid-Back', label: 'Thoracic & Scapula', icon: '🎽' },
     { id: 'Hip Flexors & Psoas', label: 'Hip Flexors (Psoas)', icon: '🪑' },
     { id: 'Hamstrings & Calves', label: 'Legs, Hamstrings & Calves', icon: '🦵' },
-    { id: 'Eye Strain & Mental Fatigue', label: 'Eye Strain & Brain Fog', icon: '👁️' },
+    { id: 'Eye Strain & Mental Fatigue', label: 'Eye Strain & Brain Fog', icon: '👁️' }
   ];
 
   const durationOptions = [3, 5, 8, 12, 15];
 
   const togglePainArea = (areaId: string) => {
-    setSelectedPainAreas(prev => 
-      prev.includes(areaId)
-        ? prev.filter(a => a !== areaId)
-        : [...prev, areaId]
+    triggerHaptic('light');
+    setSelectedPainAreas((prev) =>
+      prev.includes(areaId) ? prev.filter((a) => a !== areaId) : [...prev, areaId]
     );
   };
 
@@ -205,6 +333,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
 
   // AI Routine Synthesis
   const handleGenerate = async () => {
+    triggerHaptic('medium');
     setIsGenerating(true);
     setErrorMsg(null);
     setHasAppended(false);
@@ -227,7 +356,8 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
           painLevel,
           painFocus: selectedPainAreas.length > 0 ? selectedPainAreas.join(', ') : 'Lower Back & Neck',
           locationType,
-          environmentNotes: `Goal: ${goal}, Pain: ${painLevel}/10`,
+          environmentNotes: `Goal: ${goal}, Pain: ${painLevel}/10. ${routineNotes}`,
+          difficultyFilter: activeDifficulty.intensity === 'all' ? undefined : activeDifficulty.intensity,
           experienceLevel: 'All Levels'
         })
       });
@@ -240,28 +370,14 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
       }
 
       const data: Routine = await response.json();
-      
-      const enrichedRoutine: Routine = {
-        ...data,
-        id: data.id || `smart-routine-${Date.now()}`,
-        vehicle: vehicle,
-        category: vehicle === 'two-wheeler' ? 'two-wheeler' : 'car',
-        durationMinutes: availableMinutes,
-        bannerGradient: painLevel >= 7 
-          ? 'from-rose-500 to-amber-600' 
-          : painLevel >= 4 
-            ? 'from-cyan-500 to-blue-600' 
-            : 'from-emerald-500 to-teal-600',
-        targetAreas: selectedPainAreas.length > 0 ? selectedPainAreas : data.targetAreas || ['Spine', 'Hips'],
-        isFavorite: false
-      };
 
-      // Load synthesized routine into the active builder
-      setRoutineTitle(enrichedRoutine.title);
-      setRoutineSubtitle(enrichedRoutine.subtitle);
-      setRoutineExercises(enrichedRoutine.exercises || []);
-      setSelectedPreviewExercise(enrichedRoutine.exercises?.[0] || null);
+      setRoutineTitle(data.title);
+      setRoutineSubtitle(data.subtitle);
+      if (data.notes) setRoutineNotes(data.notes);
+      setRoutineExercises(data.exercises || []);
+      setSelectedPreviewExercise(data.exercises?.[0] || null);
       setActiveTab('builder');
+      triggerHaptic('success');
 
       confetti({
         particleCount: 50,
@@ -270,17 +386,83 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
       });
     } catch (err: any) {
       console.error('Smart Routine Creator error:', err);
-      // Fallback to local synthesis from library
-      const fallbackExercises = ALL_EXERCISES.slice(0, Math.min(5, Math.max(3, Math.floor(availableMinutes * 0.7))));
+      const pool =
+        activeDifficulty.intensity === 'all'
+          ? ALL_EXERCISES
+          : ALL_EXERCISES.filter((e) => e.intensity === activeDifficulty.intensity);
+      const fallbackExercises = (pool.length >= 3 ? pool : ALL_EXERCISES).slice(
+        0,
+        Math.min(5, Math.max(3, Math.floor(availableMinutes * 0.7)))
+      );
       setRoutineTitle(`Synthesized ${vehicle.toUpperCase()} Relief (${availableMinutes} Min)`);
       setRoutineSubtitle(`Targeted focus on ${selectedPainAreas.slice(0, 2).join(' & ')}`);
       setRoutineExercises(fallbackExercises);
-      setSelectedPreviewExercise(fallbackExercises[0]);
+      setSelectedPreviewExercise(fallbackExercises[0] || null);
       setActiveTab('builder');
-      setErrorMsg('Connected using local biomechanical library.');
+      setErrorMsg('Synthesized using local biomechanical library.');
     } finally {
       setIsGenerating(false);
       setGenerationStep('');
+    }
+  };
+
+  // Agentic Flow Auto-Optimizer
+  const handleAgenticOptimize = async () => {
+    if (routineExercises.length < 2) return;
+    triggerHaptic('medium');
+    setIsOptimizing(true);
+
+    try {
+      const response = await fetch('/api/coach/agentic-optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exercises: routineExercises,
+          vehicle,
+          notes: routineNotes,
+          difficultyFilter: activeDifficulty.label
+        })
+      });
+
+      if (!response.ok) throw new Error('Optimization unavailable');
+      const data = await response.json();
+
+      if (Array.isArray(data.orderedIds) && data.orderedIds.length > 0) {
+        const ordered: Exercise[] = [];
+        const remaining = [...routineExercises];
+        data.orderedIds.forEach((id: string) => {
+          const idx = remaining.findIndex((ex) => ex.id === id);
+          if (idx !== -1) {
+            ordered.push(remaining[idx]);
+            remaining.splice(idx, 1);
+          }
+        });
+        setRoutineExercises([...ordered, ...remaining]);
+      }
+
+      if (data.enhancedNotes) {
+        setRoutineNotes(data.enhancedNotes);
+      }
+
+      triggerHaptic('success');
+      setShareFeedback(data.coachSummary || 'Agentic Coach optimized your kinetic sequence!');
+      setTimeout(() => setShareFeedback(null), 4000);
+    } catch {
+      // Deterministic biomechanical ordering fallback: Gentle -> Moderate -> Deep Release
+      const rank: Record<string, number> = { Gentle: 1, Moderate: 2, 'Deep Release': 3 };
+      const sorted = [...routineExercises].sort(
+        (a, b) => (rank[a.intensity] || 2) - (rank[b.intensity] || 2)
+      );
+      setRoutineExercises(sorted);
+      setRoutineNotes(
+        (prev) =>
+          `${prev ? prev + ' • ' : ''}Auto-sequenced warm-to-deep cadence (${activeDifficulty.label}).`
+      );
+      triggerHaptic('success');
+      setShareFeedback('Sequenced biomechanically from warm-up drills to deep decompression.');
+      setTimeout(() => setShareFeedback(null), 3500);
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -290,13 +472,14 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
       id: `custom-routine-${Date.now()}`,
       title: routineTitle || 'Custom Mobility Sequence',
       subtitle: routineSubtitle || 'Tailored stretch protocol',
+      notes: routineNotes.trim() || undefined,
       category: vehicle === 'two-wheeler' ? 'two-wheeler' : 'car',
       vehicle: vehicle,
       durationMinutes: estimatedMinutes,
       intensity: calculatedIntensity,
       exercises: routineExercises,
       coachRationale: `Custom user sequence comprising ${routineExercises.length} targeted biomechanical drills. Total cumulative stretch duration: ${durationFormatted}.`,
-      targetAreas: Array.from(new Set(routineExercises.flatMap(e => e.targetMuscles || []))).slice(0, 4),
+      targetAreas: Array.from(new Set(routineExercises.flatMap((e) => e.targetMuscles || []))).slice(0, 4),
       bannerGradient: 'from-cyan-500 via-sky-500 to-blue-600',
       isFavorite: isFavorite
     };
@@ -305,10 +488,11 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   // Save / Append to Protocols
   const handleSaveRoutine = (autoStart: boolean = false) => {
     if (routineExercises.length === 0) return;
+    triggerHaptic('success');
     const routine = buildCurrentRoutine();
     setHasAppended(true);
     onRoutineCreated(routine, autoStart);
-    
+
     confetti({
       particleCount: 60,
       spread: 70,
@@ -319,6 +503,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   // 1-Click 'Save as Quick Favorite'
   const handleToggleQuickFavorite = () => {
     if (routineExercises.length === 0) return;
+    triggerHaptic('medium');
     const nextFav = !isFavorite;
     setIsFavorite(nextFav);
 
@@ -326,10 +511,9 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
     routine.isFavorite = nextFav;
     onRoutineCreated(routine, false);
 
-    // Save to quick favorites in localStorage
     try {
       const existing = JSON.parse(localStorage.getItem('stretchway_quick_favorites') || '[]');
-      const updated = nextFav 
+      const updated = nextFav
         ? [routine.id, ...existing.filter((id: string) => id !== routine.id)]
         : existing.filter((id: string) => id !== routine.id);
       localStorage.setItem('stretchway_quick_favorites', JSON.stringify(updated));
@@ -353,6 +537,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
 
   // 'Clear All' button action
   const handleClearAll = () => {
+    triggerHaptic('warning');
     setRoutineExercises([]);
     setSelectedPreviewExercise(null);
     setHasAppended(false);
@@ -376,7 +561,8 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
       return;
     }
 
-    setRoutineExercises(prev => {
+    triggerHaptic('light');
+    setRoutineExercises((prev) => {
       const next = [...prev];
       const [moved] = next.splice(draggedIdx, 1);
       next.splice(dropIndex, 0, moved);
@@ -390,8 +576,9 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   const handleMoveExercise = (fromIdx: number, direction: 'up' | 'down') => {
     const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
     if (toIdx < 0 || toIdx >= routineExercises.length) return;
+    triggerHaptic('light');
 
-    setRoutineExercises(prev => {
+    setRoutineExercises((prev) => {
       const next = [...prev];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
@@ -401,20 +588,21 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
 
   const handleRemoveExercise = (index: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    triggerHaptic('light');
     const removedEx = routineExercises[index];
-    setRoutineExercises(prev => prev.filter((_, i) => i !== index));
+    setRoutineExercises((prev) => prev.filter((_, i) => i !== index));
     if (selectedPreviewExercise?.id === removedEx.id) {
       setSelectedPreviewExercise(routineExercises.find((_, i) => i !== index) || null);
     }
   };
 
   const handleAddExerciseToRoutine = (ex: Exercise) => {
-    // Avoid duplicate id in same routine by appending timestamp if already exists
-    const uniqueEx: Exercise = routineExercises.some(e => e.id === ex.id)
+    triggerHaptic('medium');
+    const uniqueEx: Exercise = routineExercises.some((e) => e.id === ex.id)
       ? { ...ex, id: `${ex.id}-${Date.now().toString().slice(-4)}` }
       : { ...ex };
 
-    setRoutineExercises(prev => [...prev, uniqueEx]);
+    setRoutineExercises((prev) => [...prev, uniqueEx]);
     setSelectedPreviewExercise(uniqueEx);
     setIsLibraryOpen(false);
   };
@@ -422,20 +610,16 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
   // 'Share Routine' deep link & summary generation
   const handleShareRoutine = () => {
     if (routineExercises.length === 0) return;
+    triggerHaptic('light');
     const routine = buildCurrentRoutine();
-    const shareUrl = `${window.location.origin}${window.location.pathname}?routine=${encodeURIComponent(routine.id)}`;
-    
-    const summaryText = `🚗 StretchWay Custom Routine: "${routine.title}"\n` +
-      `⏱️ Total Duration: ${durationFormatted} (${routine.exercises.length} Drills)\n` +
-      `🎯 Difficulty: ${routine.intensity} | Vehicle: ${routine.vehicle}\n` +
-      `📋 Exercises:\n` +
-      routine.exercises.map((e, idx) => `  ${idx + 1}. ${e.name} (${e.durationSeconds}s) [${e.intensity}]`).join('\n') +
-      `\n\nTry this routine on StretchWay: ${shareUrl}`;
+    const shareUrl = encodeRoutineShareUrl(routine);
+    const summaryText = buildRoutineShareSummary(routine, shareUrl);
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(summaryText)
+      navigator.clipboard
+        .writeText(summaryText)
         .then(() => {
-          setShareFeedback('Routine summary & link copied to clipboard!');
+          setShareFeedback('Routine summary & sharable link copied to clipboard!');
           setShowShareModal(true);
           setTimeout(() => setShareFeedback(null), 4000);
         })
@@ -447,9 +631,22 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
     }
   };
 
+  // Export Printable PDF Guide
+  const handlePrintPdf = (routine: Routine) => {
+    triggerHaptic('light');
+    if (onPrintRoutinePdf) {
+      onPrintRoutinePdf(routine);
+    } else {
+      window.print();
+    }
+    setShareFeedback(`Prepared printable PDF guide for "${routine.title}"`);
+    setTimeout(() => setShareFeedback(null), 3500);
+  };
+
   // 'Duplicate' action handler for custom routine cards
   const handleDuplicate = (routine: Routine, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    triggerHaptic('medium');
     if (onDuplicateRoutine) {
       onDuplicateRoutine(routine, e);
     } else {
@@ -458,15 +655,16 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
         id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         title: `${routine.title} (Copy)`,
         subtitle: routine.subtitle || 'Cloned custom routine',
+        notes: routine.notes,
         isFavorite: false,
         exercises: [...routine.exercises]
       };
       onRoutineCreated(duplicated, false);
     }
 
-    // Also load into builder so user can instantly tweak
     setRoutineTitle(`${routine.title} (Copy)`);
     setRoutineSubtitle(routine.subtitle || 'Cloned sequence');
+    setRoutineNotes(routine.notes || '');
     setRoutineExercises([...routine.exercises]);
     setSelectedPreviewExercise(routine.exercises[0] || null);
     setActiveTab('builder');
@@ -481,29 +679,34 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
     setTimeout(() => setShareFeedback(null), 3500);
   };
 
-  // Filtered exercises for the library drawer
+  // Filtered exercises for the library drawer (synced with Difficulty Filter slider)
   const filteredLibraryExercises = useMemo(() => {
-    return ALL_EXERCISES.filter(ex => {
-      const matchesSearch = librarySearch.trim() === '' || 
+    return ALL_EXERCISES.filter((ex) => {
+      const matchesSearch =
+        librarySearch.trim() === '' ||
         ex.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
-        ex.targetMuscles.some(m => m.toLowerCase().includes(librarySearch.toLowerCase()));
-      
+        ex.targetMuscles.some((m) => m.toLowerCase().includes(librarySearch.toLowerCase()));
+
       const matchesCategory = libraryFilterCategory === 'all' || ex.category === libraryFilterCategory;
-      return matchesSearch && matchesCategory;
+      const matchesDifficulty =
+        activeDifficulty.intensity === 'all' || ex.intensity === activeDifficulty.intensity;
+      return matchesSearch && matchesCategory && matchesDifficulty;
     });
-  }, [librarySearch, libraryFilterCategory]);
+  }, [librarySearch, libraryFilterCategory, activeDifficulty]);
+
+  const currentShareUrl = useMemo(() => {
+    if (!showShareModal || routineExercises.length === 0) return '';
+    return encodeRoutineShareUrl(buildCurrentRoutine());
+  }, [showShareModal, routineTitle, routineSubtitle, routineNotes, routineExercises, vehicle]);
 
   return (
     <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-xl relative overflow-hidden transition-all">
-      
       {/* Decorative Background Glows */}
       <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-cyan-500/15 via-blue-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-gradient-to-tr from-teal-500/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Header Bar & Mode Navigation */}
       <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
-        
-        {/* Left: Branding & Title */}
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-400 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
@@ -516,7 +719,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 Interactive Studio
               </span>
               <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
-                ⚡ Real-Time Protocol Engineering
+                Real-Time Protocol Engineering
               </span>
             </div>
             <h2 className="text-lg sm:text-xl font-black text-white tracking-tight mt-0.5">
@@ -525,11 +728,14 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
           </div>
         </div>
 
-        {/* Center/Right: Top Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950 border border-slate-800 self-start sm:self-auto">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-950 border border-slate-800 self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => setActiveTab('builder')}
+            onClick={() => {
+              triggerHaptic('light');
+              setActiveTab('builder');
+            }}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'builder'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md font-black'
@@ -547,7 +753,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTab('ai_synthesizer')}
+            onClick={() => {
+              triggerHaptic('light');
+              setActiveTab('ai_synthesizer');
+            }}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'ai_synthesizer'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md font-black'
@@ -561,7 +770,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
           {customRoutines.length > 0 && (
             <button
               type="button"
-              onClick={() => setActiveTab('saved_routines')}
+              onClick={() => {
+                triggerHaptic('light');
+                setActiveTab('saved_routines');
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeTab === 'saved_routines'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md font-black'
@@ -585,25 +797,19 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
             <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>{shareFeedback}</span>
           </div>
-          <button 
-            onClick={() => setShareFeedback(null)}
-            className="text-slate-400 hover:text-white"
-          >
+          <button onClick={() => setShareFeedback(null)} className="text-slate-400 hover:text-white">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 1: ROUTINE BUILDER & DYNAMIC PREVIEW GRID                              */}
+      {/* TAB 1: ROUTINE BUILDER & DYNAMIC PREVIEW GRID                             */}
       {/* ========================================================================= */}
       {activeTab === 'builder' && (
-        <div className="relative z-10 mt-6 space-y-6">
-          
-          {/* Top Control Bar: Title Editing + Real-Time Total Duration Counter + Quick Actions */}
-          <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800/90 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
-            {/* Routine Title & Subtitle Input */}
+        <div className="relative z-10 mt-6 space-y-5">
+          {/* Top Control Bar: Title + Total Duration Counter + Actions */}
+          <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800/90 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex-1 space-y-1">
               <input
                 type="text"
@@ -621,11 +827,9 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
               />
             </div>
 
-            {/* Right Side: Real-time 'Total Duration' Estimate Counter & Header Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              
+            <div className="flex flex-wrap items-center gap-2">
               {/* REAL-TIME TOTAL DURATION ESTIMATE COUNTER */}
-              <div 
+              <div
                 id="realtime-total-duration-counter"
                 title="Real-time estimate updates as you add or remove exercises"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-cyan-500/40 shadow-md shadow-cyan-500/10 text-cyan-300"
@@ -638,9 +842,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   </span>
                   <span className="text-sm font-black font-mono text-white leading-tight">
                     {durationFormatted}
-                    <span className="text-[10px] text-cyan-400/80 font-normal ml-1">
-                      ({totalSeconds}s)
-                    </span>
+                    <span className="text-[10px] text-cyan-400/80 font-normal ml-1">({totalSeconds}s)</span>
                   </span>
                 </div>
               </div>
@@ -650,7 +852,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 type="button"
                 onClick={handleToggleQuickFavorite}
                 disabled={routineExercises.length === 0}
-                title={isFavorite ? "Favorited! Click to toggle" : "Save as Quick Favorite with a single click"}
+                title={isFavorite ? 'Favorited! Click to toggle' : 'Save as Quick Favorite with a single click'}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   isFavorite
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-md shadow-amber-500/15 font-black'
@@ -662,6 +864,18 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   {isFavorite ? 'Saved Favorite' : 'Save as Quick Favorite'}
                 </span>
                 <span className="sm:hidden">Favorite</span>
+              </button>
+
+              {/* EXPORT PDF GUIDE */}
+              <button
+                type="button"
+                onClick={() => handlePrintPdf(buildCurrentRoutine())}
+                disabled={routineExercises.length === 0}
+                title="Export Printable PDF Routine Guide"
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-emerald-500/50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Export PDF</span>
               </button>
 
               {/* SHARE ROUTINE BUTTON */}
@@ -691,12 +905,138 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
             </div>
           </div>
 
+          {/* DIFFICULTY FILTER SLIDER & ROUTINE NOTES BAR */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Difficulty Filter Slider */}
+            <div className="lg:col-span-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor="difficulty-filter-slider"
+                  className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Difficulty Filter</span>
+                </label>
+                <span
+                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase border ${
+                    difficultyStep === 0
+                      ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                      : difficultyStep === 1
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                        : difficultyStep === 2
+                          ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
+                          : 'bg-rose-500/15 text-rose-400 border-rose-500/40'
+                  }`}
+                >
+                  {activeDifficulty.label} ({activeDifficulty.badge})
+                </span>
+              </div>
+
+              <input
+                id="difficulty-filter-slider"
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={difficultyStep}
+                onChange={(e) => {
+                  triggerHaptic('light');
+                  setDifficultyStep(Number(e.target.value));
+                }}
+                aria-label="Difficulty Filter Slider"
+                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+              />
+
+              <div className="grid grid-cols-4 text-[10px] font-mono text-slate-400">
+                {DIFFICULTY_LEVELS.map((lvl) => (
+                  <button
+                    key={lvl.step}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setDifficultyStep(lvl.step);
+                    }}
+                    className={`text-left transition-colors ${
+                      difficultyStep === lvl.step ? 'text-cyan-300 font-bold' : 'hover:text-slate-200'
+                    }`}
+                  >
+                    {lvl.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500">{activeDifficulty.desc}</p>
+            </div>
+
+            {/* Routine Notes Field */}
+            <div className="lg:col-span-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="builder-routine-notes"
+                  className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5"
+                >
+                  <StickyNote className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Routine Notes</span>
+                </label>
+                <span className="text-[10px] font-mono text-slate-500">
+                  Saved on custom cards & PDF guides
+                </span>
+              </div>
+              <textarea
+                id="builder-routine-notes"
+                rows={2}
+                value={routineNotes}
+                onChange={(e) => setRoutineNotes(e.target.value)}
+                placeholder="Attach seat settings, pain reminders, or rest-stop workout context..."
+                className="w-full bg-slate-900/90 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Inline Suggested Drills Filtered by Difficulty Slider */}
+          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Quick Suggestions ({activeDifficulty.label})</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAgenticOptimize}
+                disabled={isOptimizing || routineExercises.length < 2}
+                className="px-3 py-1 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 text-[11px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                title="Use AI Coach to sequence your drills biomechanically and refine Routine Notes"
+              >
+                <Bot className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin' : ''}`} />
+                <span>{isOptimizing ? 'Optimizing Sequence...' : 'Agentic Flow Optimize'}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {suggestedExercises.map((ex) => {
+                const badge = getIntensityBadge(ex.intensity);
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => handleAddExerciseToRoutine(ex)}
+                    className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-left transition-all cursor-pointer group"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold text-slate-200 whitespace-nowrap">{ex.name}</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${badge.bgClass}`}>
+                      {badge.label}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-500">{ex.durationSeconds}s</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Builder Workspace Layout: Dynamic Preview Grid & Selected 3D Visualizer */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
             {/* Left Column (lg: 8 cols): Dynamic Preview Grid with Drag-and-Drop */}
             <div className="lg:col-span-8 space-y-4">
-              
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
@@ -721,9 +1061,8 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 </button>
               </div>
 
-              {/* DYNAMIC PREVIEW GRID OF EXERCISE THUMBNAILS */}
+              {/* DYNAMIC PREVIEW GRID */}
               {routineExercises.length === 0 ? (
-                /* Empty State when 'Clear All' is clicked */
                 <div className="p-8 rounded-2xl bg-slate-950/60 border-2 border-dashed border-slate-800 text-center space-y-3">
                   <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
                     <Layers className="w-6 h-6" />
@@ -731,7 +1070,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   <div>
                     <h4 className="text-sm font-bold text-slate-300">Routine is currently empty</h4>
                     <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                      Add exercises from the biomechanical library or synthesize a targeted recovery flow using AI.
+                      Pick from quick suggestions above, browse the biomechanical library, or synthesize a targeted recovery flow using AI.
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2 pt-2">
@@ -778,29 +1117,28 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                         }`}
                       >
                         <div>
-                          {/* Top Thumbnail Header: Drag Handle, Sequence Number, Intensity Badge, Remove */}
                           <div className="flex items-center justify-between gap-1.5 mb-2">
-                            
                             <div className="flex items-center gap-1.5">
-                              {/* Drag-and-Drop Handle */}
-                              <div 
-                                title="Drag to reorder" 
+                              <div
+                                title="Drag to reorder"
                                 className="p-1 rounded text-slate-500 hover:text-cyan-300 cursor-grab active:cursor-grabbing"
                               >
                                 <GripVertical className="w-3.5 h-3.5" />
                               </div>
 
-                              {/* Sequence Badge */}
-                              <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-mono font-black ${
-                                isSelected ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                              }`}>
+                              <span
+                                className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-mono font-black ${
+                                  isSelected
+                                    ? 'bg-cyan-500 text-slate-950'
+                                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                                }`}
+                              >
                                 #{index + 1}
                               </span>
                             </div>
 
-                            {/* SMALL INTENSITY BADGE (Low, Medium, High) */}
                             <div className="flex items-center gap-1.5">
-                              <span 
+                              <span
                                 title={`Exercise intensity: ${ex.intensity || intensityBadge.label}`}
                                 className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1 ${intensityBadge.bgClass}`}
                               >
@@ -808,7 +1146,6 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                                 <span>{intensityBadge.label}</span>
                               </span>
 
-                              {/* Remove Exercise Button */}
                               <button
                                 type="button"
                                 onClick={(e) => handleRemoveExercise(index, e)}
@@ -820,14 +1157,25 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                             </div>
                           </div>
 
-                          {/* Thumbnail Visual / Icon Area */}
                           <div className="flex items-start gap-3 mt-1">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 border border-slate-800 flex items-center justify-center text-xl shrink-0 shadow-inner group-hover:scale-105 transition-transform">
-                              {ex.category === 'car' ? '🚗' : ex.category === 'two-wheeler' ? '🏍️' : ex.category === 'spinal' ? '🦴' : ex.category === 'yoga' ? '🧘' : '⚡'}
+                              {ex.category === 'car'
+                                ? '🚗'
+                                : ex.category === 'two-wheeler'
+                                  ? '🏍️'
+                                  : ex.category === 'spinal'
+                                    ? '🦴'
+                                    : ex.category === 'yoga'
+                                      ? '🧘'
+                                      : '⚡'}
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <h4 className={`text-xs font-black leading-snug truncate ${isSelected ? 'text-cyan-300' : 'text-white'}`}>
+                              <h4
+                                className={`text-xs font-black leading-snug truncate ${
+                                  isSelected ? 'text-cyan-300' : 'text-white'
+                                }`}
+                              >
                                 {ex.name}
                               </h4>
                               <div className="flex items-center gap-2 mt-1">
@@ -836,9 +1184,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                                   {ex.durationSeconds}s
                                 </span>
                                 <span className="text-[10px] text-slate-500">•</span>
-                                <span className="text-[10px] text-slate-400 truncate">
-                                  {ex.location}
-                                </span>
+                                <span className="text-[10px] text-slate-400 truncate">{ex.location}</span>
                               </div>
                               <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
                                 {ex.targetMuscles?.slice(0, 2).join(', ') || ex.reps}
@@ -847,10 +1193,9 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                           </div>
                         </div>
 
-                        {/* Bottom Mini Control: Accessible Up/Down Reordering Buttons */}
                         <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-900 text-[10px] text-slate-500">
                           <span className="font-mono">
-                            {isSelected ? '👀 Viewing 3D Preview' : 'Click to preview'}
+                            {isSelected ? 'Viewing 3D Preview' : 'Click to preview'}
                           </span>
 
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -874,14 +1219,13 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                             </button>
                           </div>
                         </div>
-
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {/* Action Buttons: Save & Add to Protocols / Start Session */}
+              {/* Action Buttons */}
               {routineExercises.length > 0 && (
                 <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row gap-3">
                   <button
@@ -906,7 +1250,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                     {hasAppended ? (
                       <>
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Saved to Protocols!</span>
+                        <span>Saved to Custom Cards!</span>
                       </>
                     ) : (
                       <>
@@ -917,12 +1261,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   </button>
                 </div>
               )}
-
             </div>
 
-            {/* Right Column (lg: 4 cols): 3D Animation Preview Stage & Exercise Details */}
+            {/* Right Column (lg: 4 cols): 3D Animation Preview Stage & Estimated Recovery Impact Bar */}
             <div className="lg:col-span-4 space-y-4">
-              
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 font-mono">
@@ -943,24 +1285,23 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                         exercise={selectedPreviewExercise}
                         variant="card"
                         isPlaying={true}
+                        initialMode="3d"
                       />
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-black text-white">
-                        {selectedPreviewExercise.name}
-                      </h4>
+                      <h4 className="text-sm font-black text-white">{selectedPreviewExercise.name}</h4>
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900 border border-slate-800 text-cyan-300">
-                          🎯 {selectedPreviewExercise.targetMuscles.slice(0, 2).join(', ')}
+                          {selectedPreviewExercise.targetMuscles.slice(0, 2).join(', ')}
                         </span>
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900 border border-slate-800 text-slate-300">
-                          📍 {selectedPreviewExercise.location}
+                          {selectedPreviewExercise.location}
                         </span>
                       </div>
                       {selectedPreviewExercise.formCues && (
                         <p className="text-[11px] text-slate-400 mt-2 italic bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
-                          💡 {selectedPreviewExercise.formCues}
+                          {selectedPreviewExercise.formCues}
                         </p>
                       )}
                     </div>
@@ -973,41 +1314,56 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 )}
               </div>
 
-              {/* Protocol Summary Card */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
-                  <span>Drill Count:</span>
-                  <span className="font-bold text-white">{routineExercises.length} Exercises</span>
+              {/* Protocol Summary & Recovery Impact Card */}
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 text-xs">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
+                    <span>Drill Count:</span>
+                    <span className="font-bold text-white">{routineExercises.length} Exercises</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
+                    <span>Total Duration:</span>
+                    <span className="font-bold text-cyan-300">{durationFormatted}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
+                    <span>Overall Intensity:</span>
+                    <span className="font-bold text-amber-300">{calculatedIntensity}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
-                  <span>Total Duration:</span>
-                  <span className="font-bold text-cyan-300">{durationFormatted}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
-                  <span>Overall Intensity:</span>
-                  <span className="font-bold text-amber-300">{calculatedIntensity}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400 font-mono text-[11px]">
-                  <span>Quick Favorite:</span>
-                  <span className={`font-bold ${isFavorite ? 'text-amber-400' : 'text-slate-500'}`}>
-                    {isFavorite ? '★ Yes' : '☆ No'}
-                  </span>
+
+                {/* Estimated Recovery Impact Visual Progress Bar */}
+                <div className="pt-2.5 border-t border-slate-800/90 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
+                      <Gauge className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Estimated Recovery Impact</span>
+                    </span>
+                    <span className="text-xs font-mono font-black text-cyan-300">
+                      {builderImpact.score}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${builderImpact.barGradient} transition-all duration-500`}
+                      style={{ width: `${builderImpact.score}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>{builderImpact.label}</span>
+                    <span>Filter Match: {builderImpact.matchPct}%</span>
+                  </div>
                 </div>
               </div>
-
             </div>
-
           </div>
-
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: AI SYNTHESIZER (Pain Inputs & Algorithmic Prescriptions)             */}
+      {/* TAB 2: AI SYNTHESIZER                                                     */}
       {/* ========================================================================= */}
       {activeTab === 'ai_synthesizer' && (
         <div className="relative z-10 mt-6 space-y-5 animate-fade-in">
-          
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
@@ -1083,7 +1439,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   <button
                     key={mins}
                     type="button"
-                    onClick={() => setAvailableMinutes(mins)}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setAvailableMinutes(mins);
+                    }}
                     className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex-1 min-w-[50px] text-center border ${
                       availableMinutes === mins
                         ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20 font-black'
@@ -1107,7 +1466,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                   { id: 'car', label: 'Car / SUV', icon: Car },
                   { id: 'two-wheeler', label: 'Motorcycle', icon: Bike },
                   { id: 'truck', label: 'Semi / Truck', icon: Truck },
-                  { id: 'commuter', label: 'Transit / Van', icon: Bus },
+                  { id: 'commuter', label: 'Transit / Van', icon: Bus }
                 ].map((v) => {
                   const Icon = v.icon;
                   const isSelected = vehicle === v.id;
@@ -1115,7 +1474,10 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                     <button
                       key={v.id}
                       type="button"
-                      onClick={() => setVehicle(v.id as any)}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setVehicle(v.id as any);
+                      }}
                       className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
@@ -1166,138 +1528,220 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
               </div>
             )}
           </div>
-
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: CUSTOM ROUTINE CARDS WITH 'DUPLICATE' ACTION BUTTON                 */}
+      {/* TAB 3: CUSTOM ROUTINE CARDS WITH NOTES, IMPACT BAR, DUPLICATE & PDF EXPORT */}
       {/* ========================================================================= */}
       {activeTab === 'saved_routines' && (
         <div className="relative z-10 mt-6 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
               <Bookmark className="w-4 h-4 text-cyan-400" />
               <span>Your Custom Routines ({customRoutines.length})</span>
             </h3>
-            <span className="text-xs text-slate-400">
-              Click 'Duplicate' to clone & customize any protocol
-            </span>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <span>Impact filter: <strong className="text-cyan-300">{activeDifficulty.label}</strong></span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {customRoutines.map((routine) => (
-              <div
-                key={routine.id}
-                className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between group relative overflow-hidden shadow-lg"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-800/60 text-[10px] font-extrabold uppercase font-mono">
-                      {routine.vehicle}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300">
-                      <Clock className="w-3 h-3 text-cyan-400" />
-                      <span>{routine.durationMinutes}m</span>
+            {customRoutines.map((routine) => {
+              const cardImpact = computeRecoveryImpact(
+                routine.exercises || [],
+                difficultyStep,
+                dailyGoalMinutes
+              );
+              const isEditingNotes = editingNoteCardId === routine.id;
+
+              return (
+                <div
+                  key={routine.id}
+                  className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between group relative overflow-hidden shadow-lg"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-800/60 text-[10px] font-extrabold uppercase font-mono">
+                        {routine.vehicle}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300">
+                        <Clock className="w-3 h-3 text-cyan-400" />
+                        <span>{routine.durationMinutes}m</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-sm font-black text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                      {routine.title}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{routine.subtitle}</p>
+
+                    {/* Routine Notes Display & Quick Inline Editor */}
+                    <div className="mt-3 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase text-amber-400">
+                        <span className="flex items-center gap-1">
+                          <StickyNote className="w-3 h-3" />
+                          <span>Routine Notes</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isEditingNotes) {
+                              onUpdateCustomRoutineNotes?.(routine.id, editingNoteDraft);
+                              setEditingNoteCardId(null);
+                              triggerHaptic('light');
+                              setShareFeedback('Routine notes updated!');
+                              setTimeout(() => setShareFeedback(null), 2500);
+                            } else {
+                              setEditingNoteCardId(routine.id);
+                              setEditingNoteDraft(routine.notes || '');
+                            }
+                          }}
+                          className="text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5"
+                        >
+                          <Edit3 className="w-2.5 h-2.5" />
+                          <span>{isEditingNotes ? 'Save' : 'Edit'}</span>
+                        </button>
+                      </div>
+
+                      {isEditingNotes ? (
+                        <textarea
+                          rows={2}
+                          value={editingNoteDraft}
+                          onChange={(e) => setEditingNoteDraft(e.target.value)}
+                          placeholder="Add workout notes or seat reminders..."
+                          className="w-full bg-slate-950 border border-cyan-500/40 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none resize-none"
+                        />
+                      ) : (
+                        <p className="text-[11px] text-slate-300 italic line-clamp-2">
+                          {routine.notes || 'No notes attached yet — click Edit to add reminders.'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {routine.exercises.slice(0, 3).map((e, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-400"
+                        >
+                          {e.name}
+                        </span>
+                      ))}
+                      {routine.exercises.length > 3 && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-900 text-slate-500">
+                          +{routine.exercises.length - 3} more
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <h4 className="text-sm font-black text-white group-hover:text-cyan-300 transition-colors leading-snug">
-                    {routine.title}
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                    {routine.subtitle}
-                  </p>
+                  {/* Card Actions + Visual Recovery Impact Progress Bar */}
+                  <div className="pt-4 mt-4 border-t border-slate-900 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDuplicate(routine, e)}
+                          title="Duplicate this routine"
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/50 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Duplicate</span>
+                        </button>
 
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {routine.exercises.slice(0, 3).map((e, idx) => (
-                      <span key={idx} className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-400">
-                        {e.name}
-                      </span>
-                    ))}
-                    {routine.exercises.length > 3 && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-900 text-slate-500">
-                        +{routine.exercises.length - 3} more
-                      </span>
-                    )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setRoutineTitle(routine.title);
+                            setRoutineSubtitle(routine.subtitle || '');
+                            setRoutineNotes(routine.notes || '');
+                            setRoutineExercises([...routine.exercises]);
+                            setSelectedPreviewExercise(routine.exercises[0] || null);
+                            setActiveTab('builder');
+                          }}
+                          title="Load into Routine Builder"
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handlePrintPdf(routine)}
+                          title="Export Printable PDF Guide"
+                          className="p-1.5 rounded-xl bg-slate-900 hover:bg-emerald-950/60 text-emerald-400 border border-slate-800 hover:border-emerald-500/40 transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onStartRoutine ? onStartRoutine(routine) : onRoutineCreated(routine, true)
+                          }
+                          title="Start Session"
+                          className="p-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-transform active:scale-95 cursor-pointer"
+                        >
+                          <Play className="w-4 h-4 fill-slate-950" />
+                        </button>
+
+                        {onDeleteRoutine && (
+                          <button
+                            type="button"
+                            onClick={(e) => onDeleteRoutine(routine.id, e)}
+                            title="Delete custom routine"
+                            className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-950/70 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-500/40 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Visual Progress Bar Beneath Each Custom Routine */}
+                    <div className="pt-2 border-t border-slate-900/90 space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                          <Gauge className="w-3 h-3 text-cyan-400" />
+                          <span>Recovery Impact ({activeDifficulty.label})</span>
+                        </span>
+                        <span className="font-mono font-black text-cyan-300">
+                          {cardImpact.score}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${cardImpact.barGradient} transition-all duration-500`}
+                          style={{ width: `${cardImpact.score}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] text-slate-500">
+                        <span>{cardImpact.label}</span>
+                        <span>Goal Share: {cardImpact.goalPct}%</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Custom Routine Card Action Buttons including 'Duplicate' */}
-                <div className="pt-4 mt-4 border-t border-slate-900 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    {/* DUPLICATE BUTTON */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleDuplicate(routine, e)}
-                      title="Duplicate this routine"
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/50 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Duplicate</span>
-                    </button>
-
-                    {/* EDIT IN BUILDER */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRoutineTitle(routine.title);
-                        setRoutineSubtitle(routine.subtitle || '');
-                        setRoutineExercises([...routine.exercises]);
-                        setSelectedPreviewExercise(routine.exercises[0] || null);
-                        setActiveTab('builder');
-                      }}
-                      title="Load into Routine Builder"
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold transition-colors"
-                    >
-                      Edit
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {/* START SESSION */}
-                    <button
-                      type="button"
-                      onClick={() => onStartRoutine ? onStartRoutine(routine) : onRoutineCreated(routine, true)}
-                      title="Start Session"
-                      className="p-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-transform active:scale-95 cursor-pointer"
-                    >
-                      <Play className="w-4 h-4 fill-slate-950" />
-                    </button>
-
-                    {/* DELETE */}
-                    {onDeleteRoutine && (
-                      <button
-                        type="button"
-                        onClick={(e) => onDeleteRoutine(routine.id, e)}
-                        title="Delete custom routine"
-                        className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-950/70 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-500/40 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* EXERCISE LIBRARY DRAWER / MODAL (FOR ADDING EXERCISES)                    */}
+      {/* EXERCISE LIBRARY DRAWER / MODAL                                           */}
       {/* ========================================================================= */}
       {isLibraryOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-            
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Plus className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-black text-white">
-                  Add Exercise to Custom Routine
-                </h3>
+                <h3 className="text-base font-black text-white">Add Exercise to Custom Routine</h3>
               </div>
               <button
                 type="button"
@@ -1308,7 +1752,6 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
               </button>
             </div>
 
-            {/* Search and Category Filter */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
@@ -1335,7 +1778,22 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
               </select>
             </div>
 
-            {/* Exercise List */}
+            {/* Active Difficulty Filter Banner inside Modal */}
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+              <span>
+                Difficulty Filter: <strong className="text-cyan-300">{activeDifficulty.label}</strong>
+              </span>
+              {difficultyStep > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDifficultyStep(0)}
+                  className="text-cyan-400 hover:text-cyan-300 font-bold"
+                >
+                  Show All Levels
+                </button>
+              )}
+            </div>
+
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {filteredLibraryExercises.map((ex) => {
                 const badge = getIntensityBadge(ex.intensity);
@@ -1352,7 +1810,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                        <span className="text-cyan-400 font-mono">⏱️ {ex.durationSeconds}s</span>
+                        <span className="text-cyan-400 font-mono">{ex.durationSeconds}s</span>
                         <span>• {ex.location}</span>
                         <span>• {ex.targetMuscles.slice(0, 2).join(', ')}</span>
                       </div>
@@ -1370,13 +1828,12 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
                 );
               })}
             </div>
-
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* SHARE ROUTINE MODAL / SUMMARY VIEW                                        */}
+      {/* SHARE ROUTINE & PDF EXPORT MODAL                                          */}
       {/* ========================================================================= */}
       {showShareModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
@@ -1384,7 +1841,7 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Share2 className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-black text-white">Share Custom Routine</h3>
+                <h3 className="text-base font-black text-white">Share or Export Routine Guide</h3>
               </div>
               <button
                 type="button"
@@ -1395,27 +1852,40 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
               </button>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 space-y-1.5 leading-relaxed select-all">
-              <div className="font-bold text-cyan-300">🚗 {routineTitle}</div>
-              <div className="text-slate-400">⏱️ Duration: {durationFormatted} • {routineExercises.length} Drills</div>
-              <div className="text-slate-400">⚡ Intensity: {calculatedIntensity}</div>
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 space-y-1.5 leading-relaxed">
+              <div className="font-bold text-cyan-300">{routineTitle}</div>
+              <div className="text-slate-400">
+                Duration: {durationFormatted} • {routineExercises.length} Drills • {calculatedIntensity}
+              </div>
+              {routineNotes && <div className="text-amber-300/90 text-[11px]">Notes: {routineNotes}</div>}
               <div className="text-slate-500 text-[11px] pt-1">
-                Sequence: {routineExercises.map(e => e.name).join(' → ')}
+                Sequence: {routineExercises.map((e) => e.name).join(' → ')}
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  const shareUrl = `${window.location.origin}${window.location.pathname}?routine=${encodeURIComponent(buildCurrentRoutine().id)}`;
-                  navigator.clipboard.writeText(shareUrl);
-                  setShareFeedback('Link copied to clipboard!');
+                  triggerHaptic('light');
+                  navigator.clipboard?.writeText(currentShareUrl);
+                  setShareFeedback('Sharable routine link copied to clipboard!');
                   setShowShareModal(false);
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition-colors text-center"
               >
-                Copy Shareable Link
+                Copy Sharable Link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShareModal(false);
+                  handlePrintPdf(buildCurrentRoutine());
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 font-black text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print PDF Guide</span>
               </button>
               <button
                 type="button"
@@ -1428,7 +1898,6 @@ export const SmartRoutineCreator: React.FC<SmartRoutineCreatorProps> = ({
           </div>
         </div>
       )}
-
     </div>
   );
 };

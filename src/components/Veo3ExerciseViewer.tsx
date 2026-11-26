@@ -28,6 +28,7 @@ interface Veo3ExerciseViewerProps {
   exercise: Exercise;
   variant?: 'card' | 'player' | 'modal' | 'mini';
   autoPlay?: boolean;
+  initialRenderMode?: 'rig' | '3d';
   onBack?: () => void;
 }
 
@@ -35,6 +36,7 @@ export const Veo3ExerciseViewer: React.FC<Veo3ExerciseViewerProps> = ({
   exercise,
   variant = 'card',
   autoPlay = true,
+  initialRenderMode = 'rig',
   onBack
 }) => {
   const [viewMode, setViewMode] = useState<'veo3' | 'kinetic'>('kinetic');
@@ -140,7 +142,12 @@ export const Veo3ExerciseViewer: React.FC<Veo3ExerciseViewerProps> = ({
       <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-slate-950">
         {viewMode === 'kinetic' ? (
           <div className="w-full h-full">
-            <ExerciseCharacterVisual exercise={exercise} variant={variant} isPlaying={isPlaying} />
+            <ExerciseCharacterVisual
+              exercise={exercise}
+              variant={variant}
+              isPlaying={isPlaying}
+              initialMode={initialRenderMode}
+            />
           </div>
         ) : (
           <div className="relative w-full h-full flex items-center justify-center select-none overflow-hidden">

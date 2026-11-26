@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, X, Smartphone, Vibrate, Volume2, Sparkles, Video, Bell, Check, Zap, UserCheck, Play, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CoachId, CoachProfile } from '../types';
 import { COACH_PROFILES, getCoach } from '../data/coaches';
 import { speakCoachCue } from '../utils/audio';
+import { triggerHaptic } from '../utils/haptics';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -37,11 +38,18 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     return localStorage.getItem('stretchway_autoplay_veo3') !== 'false';
   });
 
+  useEffect(() => {
+    if (selectedCoachId) {
+      setCurrentCoach(selectedCoachId);
+    }
+  }, [selectedCoachId]);
+
   if (!isOpen) return null;
 
   const handleChooseCoach = (coachId: CoachId) => {
     setCurrentCoach(coachId);
     localStorage.setItem('stretchway_selected_coach', coachId);
+    triggerHaptic('medium');
     if (onSelectCoach) {
       onSelectCoach(coachId);
     }

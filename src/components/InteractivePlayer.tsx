@@ -42,12 +42,20 @@ interface InteractivePlayerProps {
     feelingBefore: number;
     feelingAfter: number;
   }) => void;
+  initialHapticsEnabled?: boolean;
+  initialPulseCountdownEnabled?: boolean;
+  selectedCoachId?: CoachId;
+  equippedFlairIds?: string[];
 }
 
 export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   routine,
   onClose,
-  onComplete
+  onComplete,
+  initialHapticsEnabled,
+  initialPulseCountdownEnabled,
+  selectedCoachId: propCoachId,
+  equippedFlairIds = []
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(routine.exercises[0]?.durationSeconds || 45);
@@ -59,9 +67,11 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   const [liveCue, setLiveCue] = useState<string>('Great Form! Keep alignment centered');
   
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => {
-    return localStorage.getItem('stretchway_haptics') !== 'false';
+    if (typeof initialHapticsEnabled === 'boolean') return initialHapticsEnabled;
+    return localStorage.getItem('stretchway_haptics_enabled') !== 'false';
   });
   const [pulseCountdownEnabled, setPulseCountdownEnabled] = useState<boolean>(() => {
+    if (typeof initialPulseCountdownEnabled === 'boolean') return initialPulseCountdownEnabled;
     return localStorage.getItem('stretchway_pulse_countdown') !== 'false';
   });
   const [isCompleted, setIsCompleted] = useState(false);
@@ -69,7 +79,7 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
   const [feelingAfter, setFeelingAfter] = useState(5);
   const [stepChecked, setStepChecked] = useState<Record<number, boolean>>({});
 
-  const selectedCoachId = (typeof window !== 'undefined' ? (localStorage.getItem('stretchway_selected_coach') as CoachId) || 'olympic' : 'olympic');
+  const selectedCoachId = propCoachId || (typeof window !== 'undefined' ? (localStorage.getItem('stretchway_selected_coach') as CoachId) || 'olympic' : 'olympic');
   const activeCoach = getCoach(selectedCoachId);
 
   const currentExercise: Exercise = routine.exercises[currentIdx] || routine.exercises[0];
@@ -80,16 +90,16 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
     setPulseCountdownEnabled(next);
     localStorage.setItem('stretchway_pulse_countdown', String(next));
     if (next && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([60]);
+      try { navigator.vibrate([60]); } catch {}
     }
   };
 
   const toggleHaptics = () => {
     const next = !hapticsEnabled;
     setHapticsEnabled(next);
-    localStorage.setItem('stretchway_haptics', String(next));
+    localStorage.setItem('stretchway_haptics_enabled', String(next));
     if (next && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([100]);
+      try { navigator.vibrate([100]); } catch {}
     }
   };
 
@@ -227,6 +237,7 @@ export const InteractivePlayer: React.FC<InteractivePlayerProps> = ({
               coachId={selectedCoachId}
               variant="mini"
               isPlaying={true}
+              equippedFlairIds={equippedFlairIds}
               showBiomechanicsHUD={false}
             />
             <div className="absolute -bottom-1 inset-x-0 py-0.5 bg-cyan-500 text-slate-950 font-black text-[9px] uppercase tracking-wider">

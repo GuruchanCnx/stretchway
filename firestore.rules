@@ -1,24 +1,264 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // User profile documents
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId || request.auth == null;
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
     }
-    
+
+    // Global hardened helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['userId', 'totalMinutesStretched']) &&
+             data.keys().hasOnly([
+               'userId',
+               'displayName',
+               'email',
+               'vehiclePreference',
+               'accentTheme',
+               'currentStreakDays',
+               'totalMinutesStretched',
+               'totalSessionsCompleted',
+               'lastSessionDate',
+               'lastActiveDate',
+               'favoriteExerciseIds',
+               'assessmentProfile',
+               'customRoutines',
+               'lastCustomRoutineGeneratedAt',
+               'tailoredAt',
+               'createdAt',
+               'updatedAt'
+             ]) &&
+             data.userId is string && data.userId == userId && isValidId(data.userId) &&
+             data.totalMinutesStretched is number && data.totalMinutesStretched >= 0 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('vehiclePreference' in data) || (data.vehiclePreference is string && data.vehiclePreference.size() <= 40)) &&
+             (!('accentTheme' in data) || (data.accentTheme is string && data.accentTheme.size() <= 40)) &&
+             (!('currentStreakDays' in data) || (data.currentStreakDays is number && data.currentStreakDays >= 0)) &&
+             (!('totalSessionsCompleted' in data) || (data.totalSessionsCompleted is number && data.totalSessionsCompleted >= 0)) &&
+             (!('lastSessionDate' in data) || (data.lastSessionDate is string && data.lastSessionDate.size() <= 64)) &&
+             (!('lastActiveDate' in data) || (data.lastActiveDate is string && data.lastActiveDate.size() <= 64)) &&
+             (!('lastCustomRoutineGeneratedAt' in data) || (data.lastCustomRoutineGeneratedAt is string && data.lastCustomRoutineGeneratedAt.size() <= 64)) &&
+             (!('tailoredAt' in data) || (data.tailoredAt is string && data.tailoredAt.size() <= 64)) &&
+             (!('favoriteExerciseIds' in data) || (data.favoriteExerciseIds is list && data.favoriteExerciseIds.size() <= 100 && (data.favoriteExerciseIds.size() == 0 || data.favoriteExerciseIds[0] is string))) &&
+             (!('customRoutines' in data) || (data.customRoutines is list && data.customRoutines.size() <= 50));
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['userId', 'title', 'durationMinutes', 'completedAt', 'createdAt']) &&
+             data.keys().hasOnly([
+               'userId',
+               'routineId',
+               'title',
+               'durationMinutes',
+               'vehicle',
+               'completedAt',
+               'preComfortScore',
+               'postComfortScore',
+               'notes',
+               'createdAt'
+             ]) &&
+             data.userId is string && data.userId == request.auth.uid && isValidId(data.userId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             data.durationMinutes is number && data.durationMinutes >= 0 && data.durationMinutes <= 600 &&
+             data.completedAt is string && data.completedAt.size() <= 64 &&
+             (!('routineId' in data) || (data.routineId is string && data.routineId.size() <= 128)) &&
+             (!('vehicle' in data) || (data.vehicle is string && data.vehicle.size() <= 40)) &&
+             (!('preComfortScore' in data) || (data.preComfortScore is number && data.preComfortScore >= 1 && data.preComfortScore <= 10)) &&
+             (!('postComfortScore' in data) || (data.postComfortScore is number && data.postComfortScore >= 1 && data.postComfortScore <= 10)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidCustomRoutine(data) {
+      return data.keys().hasAll(['userId', 'routineId', 'title', 'exerciseIds', 'createdAt']) &&
+             data.keys().hasOnly([
+               'userId',
+               'routineId',
+               'title',
+               'subtitle',
+               'notes',
+               'vehicle',
+               'intensity',
+               'totalDurationMinutes',
+               'exerciseIds',
+               'createdAt',
+               'updatedAt'
+             ]) &&
+             data.userId is string && data.userId == request.auth.uid && isValidId(data.userId) &&
+             data.routineId is string && isValidId(data.routineId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 300)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 600)) &&
+             (!('vehicle' in data) || (data.vehicle is string && data.vehicle.size() <= 40)) &&
+             (!('intensity' in data) || (data.intensity is string && data.intensity.size() <= 40)) &&
+             (!('totalDurationMinutes' in data) || (data.totalDurationMinutes is number && data.totalDurationMinutes >= 0 && data.totalDurationMinutes <= 300)) &&
+             data.exerciseIds is list && data.exerciseIds.size() <= 40 && (data.exerciseIds.size() == 0 || data.exerciseIds[0] is string);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['orderId', 'userId', 'orderDate', 'monthKey', 'items', 'total', 'status', 'createdAt']) &&
+             data.keys().hasOnly([
+               'orderId',
+               'userId',
+               'orderDate',
+               'monthKey',
+               'items',
+               'total',
+               'status',
+               'createdAt'
+             ]) &&
+             data.orderId is string && isValidId(data.orderId) &&
+             data.userId is string && data.userId == request.auth.uid && isValidId(data.userId) &&
+             data.orderDate is string && data.orderDate.size() <= 32 &&
+             data.monthKey is string && data.monthKey.size() == 7 &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+             data.total is number && data.total >= 0 && data.total <= 50000 &&
+             data.status in ['Confirmed', 'Shipped', 'Delivered'];
+    }
+
+    function isValidGearInventory(data) {
+      return data.keys().hasAll(['userId', 'productId', 'stock', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'productId', 'sku', 'name', 'stock', 'lowStockThreshold', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid && isValidId(data.userId) &&
+             data.productId is string && isValidId(data.productId) &&
+             (!('sku' in data) || (data.sku is string && data.sku.size() <= 40)) &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 160)) &&
+             data.stock is number && data.stock >= 0 && data.stock <= 10000 &&
+             (!('lowStockThreshold' in data) || (data.lowStockThreshold is number && data.lowStockThreshold >= 0));
+    }
+
+    // Health check document for connection validation
+    match /test/connection {
+      allow get: if isSignedIn();
+    }
+
+    // User profile documents (PII isolated to owner)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId) && isOwner(userId) &&
+                       isValidUser(incoming(), userId) &&
+                       incoming().createdAt == request.time &&
+                       incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isOwner(userId) &&
+                       isValidUser(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                       incoming().updatedAt == request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName',
+                         'email',
+                         'vehiclePreference',
+                         'accentTheme',
+                         'currentStreakDays',
+                         'totalMinutesStretched',
+                         'totalSessionsCompleted',
+                         'lastSessionDate',
+                         'lastActiveDate',
+                         'favoriteExerciseIds',
+                         'assessmentProfile',
+                         'customRoutines',
+                         'lastCustomRoutineGeneratedAt',
+                         'tailoredAt',
+                         'updatedAt'
+                       ]);
+    }
+
     // Session workout history
     match /sessions/{sessionId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid || request.auth == null;
+      allow get: if isValidId(sessionId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isValidId(sessionId) && isSignedIn() &&
+                       isValidSession(incoming()) &&
+                       incoming().createdAt == request.time;
+      allow update: if isValidId(sessionId) && isSignedIn() &&
+                       existing().userId == request.auth.uid &&
+                       isValidSession(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['notes', 'preComfortScore', 'postComfortScore']);
+      allow delete: if isValidId(sessionId) && isSignedIn() && existing().userId == request.auth.uid;
     }
 
     // Custom routines
     match /customRoutines/{routineId} {
-      allow read: if true;
-      allow write: if true;
+      allow get: if isValidId(routineId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isValidId(routineId) && isSignedIn() &&
+                       isValidCustomRoutine(incoming()) &&
+                       incoming().createdAt == request.time &&
+                       incoming().updatedAt == request.time;
+      allow update: if isValidId(routineId) && isSignedIn() &&
+                       existing().userId == request.auth.uid &&
+                       isValidCustomRoutine(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().routineId == existing().routineId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt == request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'title',
+                         'subtitle',
+                         'notes',
+                         'vehicle',
+                         'intensity',
+                         'totalDurationMinutes',
+                         'exerciseIds',
+                         'updatedAt'
+                       ]);
+      allow delete: if isValidId(routineId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Ergonomic recovery gear orders
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isValidId(orderId) && isSignedIn() &&
+                       isValidOrder(incoming()) &&
+                       incoming().createdAt == request.time;
+      allow update: if isValidId(orderId) && isSignedIn() &&
+                       existing().userId == request.auth.uid &&
+                       existing().status != 'Delivered' &&
+                       isValidOrder(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().orderId == existing().orderId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+    }
+
+    // Ergonomic gear inventory stock tracking (scoped per verified user)
+    match /gearInventory/{stockId} {
+      allow get: if isValidId(stockId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isValidId(stockId) && isSignedIn() &&
+                       isValidGearInventory(incoming()) &&
+                       incoming().updatedAt == request.time;
+      allow update: if isValidId(stockId) && isSignedIn() &&
+                       existing().userId == request.auth.uid &&
+                       isValidGearInventory(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().productId == existing().productId &&
+                       incoming().updatedAt == request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt']);
     }
   }
 }

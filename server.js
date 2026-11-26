@@ -22,7 +22,10 @@ function getGenAI() {
       console.warn('GEMINI_API_KEY is not set. Using fallback intelligent response engine.');
       return null;
     }
-    aiClient = new GoogleGenAI({ apiKey });
+    aiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
   }
   return aiClient;
 }
@@ -69,13 +72,13 @@ app.post('/api/coach/chat', async (req, res) => {
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-4-hydrogen',
       contents: formattedContents,
     });
 
     res.json({
       reply: response.text || 'Keep your spine tall and breathe deeply.',
-      source: 'gemini-3.7-flash'
+      source: 'gemini-4-hydrogen'
     });
   } catch (error) {
     console.error('Error in /api/coach/chat:', error);
@@ -89,13 +92,14 @@ app.post('/api/coach/chat', async (req, res) => {
 // API endpoint for generating tailored custom routine
 app.post('/api/coach/generate-routine', async (req, res) => {
   try {
-    const { vehicle, durationMinutes, painLevel, painFocus, locationType, environmentNotes, experienceLevel } = req.body;
+    const { vehicle, durationMinutes, painLevel, painFocus, locationType, environmentNotes, experienceLevel, notes, difficultyFilter } = req.body;
     const ai = getGenAI();
     const veh = vehicle || 'car';
     const dur = Number(durationMinutes) || 8;
     const pLevel = painLevel || 5;
     const focus = painFocus || 'Lower Back & Cervical Spine';
     const loc = locationType || 'In-Seat';
+    const diffLabel = difficultyFilter && difficultyFilter !== 'all' ? difficultyFilter : (pLevel >= 7 ? 'Deep Release' : pLevel >= 4 ? 'Moderate' : 'Gentle');
 
     const prompt = `${COACH_SYSTEM_PROMPT}
 
@@ -159,104 +163,105 @@ Return ONLY valid JSON matching this schema without markdown formatting or code 
         id: `ai-routine-${Date.now()}`,
         title: fallbackTitle,
         subtitle: `Targeted biomechanical decompression for ${focus} (Pain Level: ${pLevel}/10)`,
+        notes: notes || `Focus on smooth nasal exhales (${diffLabel} intensity). Always park safely before off-seat drills.`,
         category: isMotorcycle ? 'two-wheeler' : 'car',
         vehicle: veh,
         durationMinutes: dur,
-        intensity: pLevel >= 7 ? 'Deep Release' : pLevel >= 4 ? 'Moderate' : 'Gentle',
+        intensity: diffLabel,
         targetAreas: [focus, 'Spine', 'Circulation'],
         coachRationale: `Tailored Olympic Coaching prescription designed to counteract static seated spinal compression and neuromuscular ischemia at pain level ${pLevel}/10.`,
         exercises: [
           {
-            id: `smart-ex-1-${Date.now()}`,
-            name: isMotorcycle ? "Rider Throttle Wrist & Forearm Extensor Decompression" : "Occipital Chin Retraction & Suboccipital Release",
-            category: isMotorcycle ? "two-wheeler" : "car",
+            id: 'car-neck-rolls',
+            name: isMotorcycle ? 'Rider Throttle Wrist & Forearm Extensor Decompression' : 'Occipital Chin Retraction & Suboccipital Release',
+            category: isMotorcycle ? 'two-wheeler' : 'car',
             vehicle: [veh],
             durationSeconds: Math.max(30, Math.floor((dur * 60) / 4)),
-            reps: "10 gentle rhythmic glides",
-            intensity: pLevel >= 7 ? "Deep Release" : "Gentle",
-            targetMuscles: isMotorcycle ? ["Extensor Carpi Radialis", "Pronator Teres"] : ["Suboccipitals", "Levator Scapulae"],
-            muscleGroup: isMotorcycle ? ["wrists"] : ["neck"],
+            reps: '10 gentle rhythmic glides',
+            intensity: diffLabel,
+            targetMuscles: isMotorcycle ? ['Extensor Carpi Radialis', 'Pronator Teres'] : ['Suboccipitals', 'Levator Scapulae'],
+            muscleGroup: isMotorcycle ? ['wrists'] : ['neck'],
             location: loc,
             steps: [
-              "Sit with spine elongated away from the steering grip.",
-              "Glide head straight back (making a gentle double-chin) without tilting down.",
-              "Hold the axial elongation for 3 full seconds while relaxing shoulders down."
+              'Sit with spine elongated away from the steering grip.',
+              'Glide head straight back (making a gentle double-chin) without tilting down.',
+              'Hold the axial elongation for 3 full seconds while relaxing shoulders down.'
             ],
-            formCues: "Keep your eye gaze parallel to the horizon.",
-            avoidMistake: "Tucking chin down into chest instead of retracting skull backwards.",
-            biomechanicsRationale: "Reverses forward-head cervical shear stress caused by road vibration and helmet load.",
-            breathPattern: "Exhale on retraction, Inhale on release"
+            formCues: 'Keep your eye gaze parallel to the horizon.',
+            avoidMistake: 'Tucking chin down into chest instead of retracting skull backwards.',
+            biomechanicsRationale: 'Reverses forward-head cervical shear stress caused by road vibration and helmet load.',
+            breathPattern: 'Exhale on retraction, Inhale on release'
           },
           {
-            id: `smart-ex-2-${Date.now()}`,
-            name: "Pelvic Clock & Lumbar Sacral Mobilizer",
-            category: "car",
+            id: 'car-pelvic-clock',
+            name: 'Pelvic Clock & Lumbar Sacral Mobilizer',
+            category: 'car',
             vehicle: [veh],
             durationSeconds: Math.max(45, Math.floor((dur * 60) / 4)),
-            reps: "12 fluid rocking cycles",
-            intensity: "Moderate",
-            targetMuscles: ["Quadratus Lumborum", "Erector Spinae", "Transverse Abdominis"],
-            muscleGroup: ["lower-back", "hips"],
+            reps: '12 fluid rocking cycles',
+            intensity: diffLabel,
+            targetMuscles: ['Quadratus Lumborum', 'Erector Spinae', 'Transverse Abdominis'],
+            muscleGroup: ['lower-back', 'hips'],
             location: loc,
             steps: [
-              "Rest hands on knees or wheel rim.",
-              "Rock pelvis forward to create a gentle lumbar arch, then rock back to flatten lumbar spine.",
-              "Flow between 12 o'clock and 6 o'clock smoothly with your breath."
+              'Rest hands on knees or wheel rim.',
+              'Rock pelvis forward to create a gentle lumbar arch, then rock back to flatten lumbar spine.',
+              'Flow between 12 o clock and 6 o clock smoothly with your breath.'
             ],
-            formCues: "Initiate movement purely from the pelvic bowl, keeping ribs quiet.",
-            avoidMistake: "Forcing range of motion if experiencing acute nerve impingement.",
-            biomechanicsRationale: "Restores hydration to compressed L4-L5 and L5-S1 lumbar discs.",
-            breathPattern: "Inhale forward arch, Exhale posterior tuck"
+            formCues: 'Initiate movement purely from the pelvic bowl, keeping ribs quiet.',
+            avoidMistake: 'Forcing range of motion if experiencing acute nerve impingement.',
+            biomechanicsRationale: 'Restores hydration to compressed L4-L5 and L5-S1 lumbar discs.',
+            breathPattern: 'Inhale forward arch, Exhale posterior tuck'
           },
           {
-            id: `smart-ex-3-${Date.now()}`,
-            name: "Seated Figure-4 Piriformis & Sciatic Glide",
-            category: "car",
+            id: 'car-hamstring-slide',
+            name: 'Seated Figure-4 Piriformis & Sciatic Glide',
+            category: 'car',
             vehicle: [veh],
             durationSeconds: Math.max(45, Math.floor((dur * 60) / 4)),
-            reps: "30s hold each side",
-            intensity: pLevel >= 7 ? "Deep Release" : "Moderate",
-            targetMuscles: ["Piriformis", "Gluteus Medius", "Obturator Internus"],
-            muscleGroup: ["hips", "lower-back"],
+            reps: '30s hold each side',
+            intensity: diffLabel,
+            targetMuscles: ['Piriformis', 'Gluteus Medius', 'Obturator Internus'],
+            muscleGroup: ['hips', 'lower-back'],
             location: loc,
             steps: [
-              "Cross right ankle over left knee to create a figure-4 shape.",
-              "Flex right ankle to 90 degrees to stabilize the knee joint.",
-              "Sit tall, then hinge forward from hip crease keeping spine neutral until a deep glute stretch is felt."
+              'Cross right ankle over left knee to create a figure-4 shape.',
+              'Flex right ankle to 90 degrees to stabilize the knee joint.',
+              'Sit tall, then hinge forward from hip crease keeping spine neutral until a deep glute stretch is felt.'
             ],
-            formCues: "Lead forward with your sternum; never round your lower back.",
-            avoidMistake: "Slumping forward over the knee.",
-            biomechanicsRationale: "Releases tight piriformis muscle compressing the sciatic nerve from accelerator pedal usage.",
-            breathPattern: "Deep slow 6s exhales into the hip crease"
+            formCues: 'Lead forward with your sternum; never round your lower back.',
+            avoidMistake: 'Slumping forward over the knee.',
+            biomechanicsRationale: 'Releases tight piriformis muscle compressing the sciatic nerve from accelerator pedal usage.',
+            breathPattern: 'Deep slow 6s exhales into the hip crease'
           },
           {
-            id: `smart-ex-4-${Date.now()}`,
-            name: "Diaphragmatic Vagal Nerve Reset & Breath Decompression",
-            category: "breathing",
+            id: 'quick-eye-palming',
+            name: 'Diaphragmatic Vagal Nerve Reset & Eye Decompression',
+            category: 'quick',
             vehicle: [veh],
             durationSeconds: Math.max(45, Math.floor((dur * 60) / 4)),
-            reps: "5 full restorative cycles",
-            intensity: "Gentle",
-            targetMuscles: ["Diaphragm", "Intercostals", "Scalenes"],
-            muscleGroup: ["core"],
+            reps: '5 full restorative cycles',
+            intensity: 'Gentle',
+            targetMuscles: ['Diaphragm', 'Intercostals', 'Scalenes'],
+            muscleGroup: ['core', 'neck'],
             location: loc,
             steps: [
-              "Place one hand on upper chest and one on belly.",
-              "Inhale through nose for 4 seconds, feeling only the belly hand rise.",
-              "Hold breath gently for 4 seconds.",
-              "Slowly exhale through pursed lips for 6-8 seconds to activate the parasympathetic brake."
+              'Rub palms gently until warm and cup softly over closed eyes.',
+              'Inhale through nose for 4 seconds, feeling belly expand.',
+              'Hold breath gently for 4 seconds.',
+              'Slowly exhale through pursed lips for 6-8 seconds to activate parasympathetic calm.'
             ],
-            formCues: "Keep upper chest, shoulders, and jaw completely still.",
-            avoidMistake: "Gasping into the neck muscles.",
-            biomechanicsRationale: "Lowers sympathetic cortisol spikes, drops resting heart rate, and melts hypertonic muscle tone.",
-            breathPattern: "4s Inhale - 4s Hold - 6s Exhale"
+            formCues: 'Keep upper chest, shoulders, and jaw completely still.',
+            avoidMistake: 'Pressing directly against eyeballs.',
+            biomechanicsRationale: 'Lowers sympathetic cortisol spikes, rests optic muscles, and melts hypertonic muscle tone.',
+            breathPattern: '4s Inhale - 4s Hold - 6s Exhale'
           }
         ]
       });
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -410,7 +415,7 @@ Return ONLY valid JSON matching this schema without markdown fences:
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -595,7 +600,7 @@ Return ONLY a valid JSON object matching this exact schema:
 Note: "movementType" MUST be one of: "neck-mobility", "wrist-spiral", "hamstring-slide", "chest-opener", "pelvic-tilt", "calf-pumps", "quad-stretch", "seated-twist", "cat-cow", "cloud-hands", "figure-4-hip".`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -609,6 +614,82 @@ Note: "movementType" MUST be one of: "neck-mobility", "wrist-spiral", "hamstring
   } catch (error) {
     console.error('Error in /api/coach/itinerary-routine:', error);
     res.status(500).json({ error: 'Failed to generate itinerary routine', details: error.message });
+  }
+});
+
+// Agentic Biomechanics Sequence Optimizer endpoint
+app.post('/api/coach/agentic-optimize', async (req, res) => {
+  try {
+    const { routineTitle = 'Custom Sequence', exercises = [], vehicle = 'car', difficultyFilter = 'all', notes = '' } = req.body;
+    const ai = getGenAI();
+
+    const intensityWeight = (intensity) => {
+      const s = String(intensity || '').toLowerCase();
+      if (s.includes('gentle') || s.includes('low')) return 1;
+      if (s.includes('deep') || s.includes('high')) return 3;
+      return 2;
+    };
+
+    const localOrdered = [...exercises].sort((a, b) => intensityWeight(a.intensity) - intensityWeight(b.intensity));
+    const localIds = localOrdered.map(e => e.id);
+    const localResult = {
+      orderedExerciseIds: localIds,
+      optimizedRationale: `Biomechanically sequenced ${exercises.length} drills from cranial/gentle warm-up to deeper ${difficultyFilter === 'all' ? 'balanced' : difficultyFilter} release for ${vehicle} drivers.`,
+      suggestedNotes: notes?.trim()
+        ? `${notes.trim()} • Sequence ordered Gentle -> Peak Release.`
+        : `Park safely before off-seat drills. Exhale slowly during peak holds (${difficultyFilter === 'all' ? 'Balanced' : difficultyFilter} pacing).`,
+      recoveryScore: Math.min(98, 68 + exercises.length * 6),
+      source: 'local-biomechanics-agent'
+    };
+
+    if (!ai || !Array.isArray(exercises) || exercises.length < 2) {
+      return res.json(localResult);
+    }
+
+    const prompt = `${COACH_SYSTEM_PROMPT}
+
+You are the StretchWay Agentic Flow Optimizer. Optimize the order and context notes for this driver mobility sequence:
+- Title: ${routineTitle}
+- Vehicle: ${vehicle}
+- Active Difficulty Filter: ${difficultyFilter}
+- Current Notes: ${notes || 'None'}
+- Exercises: ${JSON.stringify(exercises.map(e => ({ id: e.id, name: e.name, intensity: e.intensity, muscleGroup: e.muscleGroup, location: e.location })))}
+
+Reorder the existing exercise IDs from safest warm-up progression to deep decompression and vagal cool-down. Keep ALL provided exercise IDs intact.
+Return ONLY valid JSON:
+{
+  "orderedExerciseIds": ["id1", "id2"],
+  "optimizedRationale": "1-2 concise sentences explaining biomechanical flow",
+  "suggestedNotes": "Practical driver context reminder under 140 characters",
+  "recoveryScore": 92
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: prompt,
+      config: { responseMimeType: 'application/json' }
+    });
+
+    const text = response.text?.trim() || '{}';
+    const jsonStr = text.replace(/^```json/g, '').replace(/```$/g, '').trim();
+    const parsed = JSON.parse(jsonStr);
+    res.json({
+      orderedExerciseIds: Array.isArray(parsed.orderedExerciseIds) && parsed.orderedExerciseIds.length === exercises.length ? parsed.orderedExerciseIds : localIds,
+      optimizedRationale: parsed.optimizedRationale || localResult.optimizedRationale,
+      suggestedNotes: parsed.suggestedNotes || localResult.suggestedNotes,
+      recoveryScore: typeof parsed.recoveryScore === 'number' ? parsed.recoveryScore : localResult.recoveryScore,
+      source: 'gemini-4-hydrogen'
+    });
+  } catch (error) {
+    console.warn('Agentic optimize fallback:', error);
+    const exercises = Array.isArray(req.body?.exercises) ? req.body.exercises : [];
+    res.json({
+      orderedExerciseIds: exercises.map(e => e.id),
+      optimizedRationale: 'Sequenced for progressive spinal decompression and safe circulation return.',
+      suggestedNotes: req.body?.notes || 'Park safely, relax jaw, and keep exhales longer than inhales.',
+      recoveryScore: Math.min(96, 66 + exercises.length * 6),
+      source: 'local-biomechanics-agent'
+    });
   }
 });
 

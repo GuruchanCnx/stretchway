@@ -63,6 +63,7 @@ export interface Routine {
   targetAreas: string[];
   bannerGradient?: string;
   isFavorite?: boolean;
+  notes?: string;
 }
 
 export interface BreathProtocol {
@@ -251,3 +252,41 @@ export interface ThemeConfig {
     glow: string;
   };
 }
+
+export type GearCategory = 'lumbar' | 'cervical' | 'wrists' | 'hydration' | 'recovery';
+
+export interface GearProduct {
+  id: string;
+  sku: string;
+  name: string;
+  category: GearCategory;
+  description: string;
+  price: number;
+  stock: number;
+  lowStockThreshold: number;
+  badge?: string;
+  benefits: string[];
+  vehicleFit: string;
+  imageEmoji: string;
+}
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface RecoveryOrder {
+  id: string;
+  userId?: string;
+  orderDate: string; // ISO date string YYYY-MM-DD
+  monthKey: string;  // YYYY-MM
+  items: {
+    productId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+  total: number;
+  status: 'Confirmed' | 'Shipped' | 'Delivered';
+}
+

@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
-import { Play, Sparkles, Clock, MapPin, ChevronRight, Activity, Video } from 'lucide-react';
+import { Play, Clock, MapPin, Activity, Video, Heart } from 'lucide-react';
 import { Exercise, Routine } from '../types';
 import { ExerciseCharacterVisual } from './ExerciseCharacterVisual';
 import { Veo3ExerciseViewer } from './Veo3ExerciseViewer';
 import { getVeoClipForExercise } from '../data/veoClips';
+import { triggerHaptic } from '../utils/haptics';
 
 interface ExerciseCardProps {
   exercise: Exercise;
   onOpenDetail: (exercise: Exercise) => void;
   onStartSingle: (routine: Routine) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (exerciseId: string, e: React.MouseEvent) => void;
 }
 
 export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   exercise,
   onOpenDetail,
-  onStartSingle
+  onStartSingle,
+  isFavorite = false,
+  onToggleFavorite
 }) => {
   const [viewMode, setViewMode] = useState<'kinetic' | 'veo3'>('kinetic');
   const clipMeta = getVeoClipForExercise(exercise);
@@ -149,19 +154,39 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex items-center justify-between pt-3.5 mt-3.5 border-t border-slate-800/60">
-        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-          <MapPin className="w-3 h-3 text-teal-400" />
-          <span>{exercise.location}</span>
+      <div className="flex items-center justify-between pt-3.5 mt-3.5 border-t border-slate-800/60 gap-2">
+        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 truncate">
+          <MapPin className="w-3 h-3 text-teal-400 shrink-0" />
+          <span className="truncate">{exercise.location}</span>
         </span>
 
-        <button
-          onClick={handleQuickStart}
-          className="py-1.5 px-3 rounded-xl bg-slate-950 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 text-xs font-bold border border-cyan-500/30 flex items-center gap-1 transition-all"
-        >
-          <Play className="w-3 h-3 fill-current" />
-          <span>Start Drill</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={(e) => {
+                triggerHaptic('medium');
+                onToggleFavorite(exercise.id, e);
+              }}
+              title={isFavorite ? 'Remove favorite drill' : 'Favorite drill'}
+              className={`p-1.5 rounded-xl border transition-colors ${
+                isFavorite
+                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                  : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-rose-400'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-400' : ''}`} />
+            </button>
+          )}
+
+          <button
+            onClick={handleQuickStart}
+            className="py-1.5 px-3 rounded-xl bg-slate-950 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 text-xs font-bold border border-cyan-500/30 flex items-center gap-1 transition-all"
+          >
+            <Play className="w-3 h-3 fill-current" />
+            <span>Start Drill</span>
+          </button>
+        </div>
       </div>
 
     </div>
